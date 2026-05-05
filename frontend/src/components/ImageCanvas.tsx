@@ -2,18 +2,26 @@
 
 import React, { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { Upload, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2 } from "lucide-react";
 
 interface ImageCanvasProps {
   currentImage: string | null;
   onImageUpload: (base64: string) => void;
   loading?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 export default function ImageCanvas({
   currentImage,
   onImageUpload,
   loading = false,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
 }: ImageCanvasProps) {
   const [zoom, setZoom] = React.useState(1);
 
@@ -148,6 +156,17 @@ export default function ImageCanvas({
         <button className="btn-icon" onClick={handleResetZoom} title="Fit">
           <Maximize2 size={14} />
         </button>
+        <div style={{ flex: 1 }} />
+        {onUndo && (
+          <button className="btn-icon" onClick={onUndo} disabled={!canUndo} title="Undo" style={{ opacity: canUndo ? 1 : 0.5 }}>
+            <Undo2 size={14} />
+          </button>
+        )}
+        {onRedo && (
+          <button className="btn-icon" onClick={onRedo} disabled={!canRedo} title="Redo" style={{ opacity: canRedo ? 1 : 0.5 }}>
+            <Redo2 size={14} />
+          </button>
+        )}
       </div>
 
       {/* Single image canvas */}
