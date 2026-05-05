@@ -1,0 +1,661 @@
+@import "tailwindcss";
+
+:root {
+  /* ═══════════════════════════════════════════
+     Red Wine Design System
+     Solid colors only — NO gradients
+     ═══════════════════════════════════════════ */
+
+  /* Backgrounds — warm charcoal with wine undertone */
+  --bg-primary: #110C0E;
+  --bg-secondary: #1A1215;
+  --bg-tertiary: #221A1D;
+  --bg-elevated: #2C2124;
+  --bg-card: #251B1F;
+  --bg-hover: #2E2226;
+  --bg-active: #352830;
+
+  /* Borders */
+  --border-color: rgba(255, 255, 255, 0.07);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --border-active: rgba(139, 34, 82, 0.4);
+  --border-wine: rgba(139, 34, 82, 0.25);
+
+  /* Typography */
+  --text-primary: #F2ECE9;
+  --text-secondary: #A89A95;
+  --text-muted: #6E5F5A;
+  --text-bright: #FFFFFF;
+
+  /* ─── Wine Palette — SOLID colors, no gradient ─── */
+  --wine: #8B2252;
+  --wine-light: #A63D6B;
+  --wine-lighter: #C06B8D;
+  --wine-dark: #6B1A3F;
+  --wine-bg: rgba(139, 34, 82, 0.10);
+  --wine-bg-strong: rgba(139, 34, 82, 0.18);
+
+  /* Supporting accents — all solid */
+  --cream: #D4A574;
+  --cream-light: #E8C9A6;
+  --gold: #C9A96E;
+  --blush: #C77B8B;
+  --sage: #7A9B7E;
+  --slate: #8A9BAD;
+  --coral: #C96B6B;
+  --ivory: #F5F0EB;
+
+  /* Functional colors */
+  --success: #7A9B7E;
+  --warning: #C9A96E;
+  --error: #C96B6B;
+  --info: #8A9BAD;
+
+  /* Shadows — warm toned */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --shadow-wine: 0 4px 20px rgba(139, 34, 82, 0.15);
+
+  /* Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Fonts */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', monospace;
+
+  /* Transition */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@theme inline {
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+/* ═══════════════════════════════════════════
+   Base
+   ═══════════════════════════════════════════ */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ═══════════════════════════════════════════
+   Scrollbar
+   ═══════════════════════════════════════════ */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 34, 82, 0.25);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 34, 82, 0.4);
+}
+
+/* ═══════════════════════════════════════════
+   Buttons — SOLID fills, no gradient
+   ═══════════════════════════════════════════ */
+.btn-primary {
+  background: var(--wine);
+  color: var(--ivory);
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 9px 18px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
+}
+
+.btn-primary:hover {
+  background: var(--wine-light);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-wine);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  background: var(--wine-dark);
+}
+
+.btn-primary:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-sans);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.btn-secondary:active {
+  background: var(--bg-active);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover {
+  background: var(--wine-bg);
+  color: var(--wine-light);
+  border-color: var(--border-wine);
+}
+
+.btn-icon:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-wine-outline {
+  background: transparent;
+  color: var(--wine-light);
+  border: 1px solid var(--wine);
+  border-radius: var(--radius-md);
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-sans);
+}
+
+.btn-wine-outline:hover {
+  background: var(--wine);
+  color: var(--ivory);
+}
+
+.btn-lg {
+  padding: 14px 36px;
+  font-size: 15px;
+  border-radius: var(--radius-lg);
+}
+
+/* ═══════════════════════════════════════════
+   Slider — Wine accent
+   ═══════════════════════════════════════════ */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--wine);
+  border-radius: 50%;
+  border: 2px solid var(--bg-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  background: var(--wine-light);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--wine);
+  border-radius: 50%;
+  border: 2px solid var(--bg-primary);
+  cursor: pointer;
+}
+
+/* ═══════════════════════════════════════════
+   Animations
+   ═══════════════════════════════════════════ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.35s var(--ease-out) both;
+}
+
+.animate-fade-in-scale {
+  animation: fadeInScale 0.4s var(--ease-out) both;
+}
+
+.animate-slide-left {
+  animation: slideInLeft 0.4s var(--ease-out) both;
+}
+
+.animate-slide-right {
+  animation: slideInRight 0.4s var(--ease-out) both;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.35s var(--ease-out) both;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.35s var(--ease-out) both;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Stagger */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.3s; }
+.stagger-7 { animation-delay: 0.35s; }
+.stagger-8 { animation-delay: 0.4s; }
+
+/* ═══════════════════════════════════════════
+   Tooltip
+   ═══════════════════════════════════════════ */
+.tooltip {
+  position: relative;
+}
+
+.tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+}
+
+.tooltip:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ═══════════════════════════════════════════
+   Spinner
+   ═══════════════════════════════════════════ */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-top-color: var(--wine);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ═══════════════════════════════════════════
+   Toast
+   ═══════════════════════════════════════════ */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-wine);
+  border-left: 3px solid var(--wine);
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 1000;
+  animation: slideUp 0.3s var(--ease-out) both;
+  box-shadow: var(--shadow-lg);
+}
+
+/* ═══════════════════════════════════════════
+   Dropzone
+   ═══════════════════════════════════════════ */
+.dropzone {
+  border: 2px dashed rgba(139, 34, 82, 0.3);
+  border-radius: var(--radius-xl);
+  padding: 56px 40px;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  background: var(--bg-card);
+}
+
+.dropzone:hover,
+.dropzone.active {
+  border-color: var(--wine);
+  background: var(--wine-bg);
+}
+
+/* ═══════════════════════════════════════════
+   Select
+   ═══════════════════════════════════════════ */
+select {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+select:focus {
+  border-color: var(--wine);
+}
+
+select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* ═══════════════════════════════════════════
+   Section Accent Bar
+   ═══════════════════════════════════════════ */
+.section-accent {
+  position: relative;
+}
+
+.section-accent::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--wine);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.section-accent.active::before {
+  opacity: 1;
+}
+
+/* ═══════════════════════════════════════════
+   Badges — solid fills
+   ═══════════════════════════════════════════ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-wine {
+  background: var(--wine-bg-strong);
+  color: var(--wine-lighter);
+  border: 1px solid rgba(139, 34, 82, 0.3);
+}
+
+.badge-cream {
+  background: rgba(212, 165, 116, 0.12);
+  color: var(--cream);
+  border: 1px solid rgba(212, 165, 116, 0.25);
+}
+
+.badge-sage {
+  background: rgba(122, 155, 126, 0.12);
+  color: var(--sage);
+  border: 1px solid rgba(122, 155, 126, 0.25);
+}
+
+.badge-slate {
+  background: rgba(138, 155, 173, 0.12);
+  color: var(--slate);
+  border: 1px solid rgba(138, 155, 173, 0.25);
+}
+
+.badge-coral {
+  background: rgba(201, 107, 107, 0.12);
+  color: var(--coral);
+  border: 1px solid rgba(201, 107, 107, 0.25);
+}
+
+/* ═══════════════════════════════════════════
+   Canvas checkerboard
+   ═══════════════════════════════════════════ */
+.canvas-checkerboard {
+  background:
+    repeating-conic-gradient(rgba(255,255,255,0.02) 0% 25%, transparent 0% 50%) 0 0 / 20px 20px;
+}
+
+/* ═══════════════════════════════════════════
+   Cards
+   ═══════════════════════════════════════════ */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  transition: all 0.25s ease;
+}
+
+.card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.card-wine {
+  background: var(--bg-card);
+  border: 1px solid var(--border-wine);
+  border-radius: var(--radius-lg);
+}
+
+/* ═══════════════════════════════════════════
+   Landing Page Utilities
+   ═══════════════════════════════════════════ */
+.section-divider {
+  width: 48px;
+  height: 2px;
+  background: var(--wine);
+  margin: 0 auto;
+}
+
+.text-wine {
+  color: var(--wine-light);
+}
+
+.text-cream {
+  color: var(--cream);
+}
+
+.bg-wine-subtle {
+  background: var(--wine-bg);
+}
+
+/* Parallax scroll sections */
+.parallax-section {
+  position: relative;
+  overflow: hidden;
+}
+
+.parallax-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  pointer-events: none;
+}
+
+/* Feature grid item hover */
+.feature-item {
+  padding: 32px 28px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  transition: all 0.3s ease;
+}
+
+.feature-item:hover {
+  border-color: var(--border-wine);
+  background: var(--bg-elevated);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-wine);
+}
+
+/* Number marker */
+.step-number {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--wine);
+  color: var(--ivory);
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Stat card */
+.stat-card {
+  text-align: center;
+  padding: 24px 16px;
+}
+
+.stat-value {
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--wine-light);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Editor-specific: overflow hidden on body */
+.editor-mode {
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* Landing-specific: allow scrolling */
+.landing-mode {
+  overflow-y: auto;
+  height: auto;
+}
