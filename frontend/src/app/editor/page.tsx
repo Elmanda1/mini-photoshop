@@ -35,10 +35,7 @@ import Link from "next/link";
 const LIVE_OPERATIONS = new Set([
   "brightness_contrast",
   "hue_saturation",
-  "jpeg",
-  "rotate",
-  "resize",
-  "translate"
+  "jpeg"
 ]);
 
 export default function EditorPage() {
@@ -62,6 +59,7 @@ export default function EditorPage() {
   const [mlLoading, setMlLoading] = useState(false);
   const [compressionInfo, setCompressionInfo] = useState<any>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [editLog, setEditLog] = useState<string[]>([]);
 
   // Track the last live operation so we can commit changes if the user switches tools
   const lastOperationRef = useRef<string | null>(null);
@@ -80,6 +78,7 @@ export default function EditorPage() {
     setDisplayImage(base64);
     setMlResult(null);
     setCompressionInfo(null);
+    setEditLog([]);
 
     try {
       const hist = await getHistogram(base64);
@@ -95,6 +94,7 @@ export default function EditorPage() {
     setDisplayImage(uploadedImage);
     setMlResult(null);
     setCompressionInfo(null);
+    setEditLog([]);
     showToast("Reset to original");
 
     // Update histogram
@@ -140,6 +140,7 @@ export default function EditorPage() {
       // we must commit the previous displayImage as the new baseImage to prevent losing the edit.
       if (isLive && lastOperationRef.current && lastOperationRef.current !== operation && displayImage) {
         setBaseImage(displayImage);
+        setEditLog((prev) => [...prev, lastOperationRef.current!]);
       }
       
       if (isLive) {
@@ -217,6 +218,7 @@ export default function EditorPage() {
           // Destructive ops commit as new base
           if (!isLive) {
             setBaseImage(result.image);
+            setEditLog((prev) => [...prev, operation]);
             showToast(`Applied: ${operation}`);
           }
 
@@ -477,6 +479,20 @@ export default function EditorPage() {
                     <span style={{ color: "var(--wine-light)", fontSize: 12 }}>
                       Processing...
                     </span>
+                  </div>
+                )}
+
+                {editLog.length > 0 && (
+                  <div style={{ marginTop: 16 }}>
+                    <p style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>Edit History</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      {editLog.map((op, idx) => (
+                        <div key={idx} style={{ fontSize: 11, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ color: "var(--wine-light)", fontSize: 10 }}>•</span>
+                          {op.replace(/_/g, " ")}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

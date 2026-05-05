@@ -174,43 +174,8 @@ export default function ImageCanvas({
             objectFit: "contain",
             transition: "transform 0.2s ease, filter 0.2s ease",
             borderRadius: "var(--radius-sm)",
-            filter: loading ? "brightness(0.6) blur(2px)" : "none",
           }}
         />
-        
-        {/* Skeleton loading overlay */}
-        {loading && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 10,
-              pointerEvents: "none",
-            }}
-          >
-            <div
-              style={{
-                background: "rgba(139, 34, 82, 0.15)",
-                backdropFilter: "blur(4px)",
-                padding: "16px 32px",
-                borderRadius: "var(--radius-full)",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                border: "1px solid rgba(139, 34, 82, 0.3)",
-                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
-              }}
-            >
-              <div className="spinner" style={{ width: 18, height: 18 }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--wine-lighter)", letterSpacing: "0.02em" }}>
-                Processing...
-              </span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

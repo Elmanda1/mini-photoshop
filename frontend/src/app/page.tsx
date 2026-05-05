@@ -150,7 +150,7 @@ export default function LandingPage() {
 
         {/* Nav links */}
         <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-          {["Features", "How It Works", "Tech Stack"].map((item) => (
+          {["Features", "How It Works"].map((item) => (
             <a
               key={item}
               href={`#${item.toLowerCase().replace(/ /g, "-")}`}
@@ -238,7 +238,7 @@ export default function LandingPage() {
           }}
         >
           A full-stack digital image processing application with 11 modules,
-          powered by Python, OpenCV, and AI-based object recognition.
+          featuring real-time AI-based object recognition.
         </p>
 
         {/* CTA buttons */}
@@ -467,112 +467,6 @@ export default function LandingPage() {
       {/* ═══════════════════════════════════════════
           TECH STACK
           ═══════════════════════════════════════════ */}
-      <section
-        id="tech-stack"
-        style={{
-          padding: "80px 32px",
-          maxWidth: 900,
-          margin: "0 auto",
-        }}
-      >
-        <div style={{ textAlign: "center", marginBottom: 56 }}>
-          <div className="section-divider" style={{ marginBottom: 20 }} />
-          <h2
-            style={{
-              fontSize: 36,
-              fontWeight: 800,
-              letterSpacing: "-0.03em",
-              marginBottom: 12,
-            }}
-          >
-            Tech Stack
-          </h2>
-          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.6 }}>
-            Built with modern, production-grade tools.
-          </p>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
-            gap: 16,
-          }}
-        >
-          {[
-            {
-              icon: <Cpu size={20} />,
-              title: "Backend",
-              items: ["Python", "FastAPI", "Uvicorn"],
-              color: "var(--sage)",
-            },
-            {
-              icon: <Eye size={20} />,
-              title: "Image Processing",
-              items: ["OpenCV", "NumPy", "Pillow"],
-              color: "var(--cream)",
-            },
-            {
-              icon: <Monitor size={20} />,
-              title: "Frontend",
-              items: ["Next.js", "TypeScript", "Tailwind CSS"],
-              color: "var(--slate)",
-            },
-            {
-              icon: <Brain size={20} />,
-              title: "Machine Learning",
-              items: ["TensorFlow", "MobileNetV2", "CNN"],
-              color: "var(--wine-lighter)",
-            },
-          ].map((stack, i) => (
-            <div
-              key={stack.title}
-              className={`card animate-fade-in stagger-${i + 1}`}
-              style={{ padding: "28px 24px" }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  marginBottom: 16,
-                  color: stack.color,
-                }}
-              >
-                {stack.icon}
-                <span
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: "var(--text-primary)",
-                    letterSpacing: "-0.01em",
-                  }}
-                >
-                  {stack.title}
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {stack.items.map((item) => (
-                  <span
-                    key={item}
-                    style={{
-                      padding: "4px 12px",
-                      borderRadius: "var(--radius-full)",
-                      background: "var(--bg-elevated)",
-                      border: "1px solid var(--border-color)",
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: "var(--text-secondary)",
-                    }}
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* ═══════════════════════════════════════════
           CTA FOOTER
@@ -632,9 +526,6 @@ export default function LandingPage() {
       >
         <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
           Mini Photoshop — Pengolahan Citra Digital
-        </span>
-        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-          Built with Python + Next.js
         </span>
       </footer>
     </div>
