@@ -38,6 +38,27 @@ const LIVE_OPERATIONS = new Set([
   "jpeg"
 ]);
 
+const formatOpDetails = (op: string, params: any) => {
+  const name = op.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+  let details = "";
+  
+  if (!params || Object.keys(params).length === 0) return name;
+
+  if (op === "brightness_contrast") details = `B: ${params.brightness}, C: ${params.contrast}`;
+  else if (op === "hue_saturation") details = `Hue: ${params.hue_shift}°, Sat: ${params.saturation_scale}x`;
+  else if (op === "jpeg") details = `Quality: ${params.quality}%`;
+  else if (op === "rotate") details = `Angle: ${params.angle}°`;
+  else if (op === "resize") details = `Scale: ${params.scale}x`;
+  else if (op === "translate") details = `X: ${params.tx}px, Y: ${params.ty}px`;
+  else if (op === "flip") details = params.flip_code === 1 ? "Horizontal" : "Vertical";
+  else if (op === "gaussian" || op === "median" || op === "blur") details = `Kernel: ${params.kernel_size}`;
+  else if (op === "sharpen") details = `Intensity: ${params.intensity}`;
+  else if (op === "add_noise") details = `Amount: ${params.noise_amount}`;
+  else if (op === "segment") details = `Method: ${params.method || "auto"}`;
+  
+  return details ? `${name} (${details})` : name;
+};
+
 export default function EditorPage() {
   useEffect(() => {
     document.body.classList.add("editor-mode");
@@ -62,7 +83,7 @@ export default function EditorPage() {
   const [editLog, setEditLog] = useState<string[]>([]);
 
   // Track the last live operation so we can commit changes if the user switches tools
-  const lastOperationRef = useRef<string | null>(null);
+  const lastOperationRef = useRef<{ op: string; params: any } | null>(null);
 
   const liveRequestId = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -138,20 +159,24 @@ export default function EditorPage() {
       
       // If we switched to a different live operation (e.g. from rotate to brightness),
       // we must commit the previous displayImage as the new baseImage to prevent losing the edit.
-      if (isLive && lastOperationRef.current && lastOperationRef.current !== operation && displayImage) {
+      if (isLive && lastOperationRef.current && lastOperationRef.current.op !== operation && displayImage) {
         setBaseImage(displayImage);
-        setEditLog((prev) => [...prev, lastOperationRef.current!]);
+        
+        const lastOp = lastOperationRef.current.op;
+        const lastParams = lastOperationRef.current.params;
+        const detailStr = formatOpDetails(lastOp, lastParams);
+        setEditLog((prev) => [...prev, detailStr]);
       }
       
       if (isLive) {
-        lastOperationRef.current = operation;
+        lastOperationRef.current = { op: operation, params };
       } else {
         lastOperationRef.current = null; // reset on manual ops
       }
 
       // Live ops use the *current* baseImage (which might have just been updated above)
       // Manual ops use displayImage if available, else baseImage
-      const currentBase = (isLive && lastOperationRef.current && lastOperationRef.current !== operation && displayImage) 
+      const currentBase = (isLive && lastOperationRef.current && lastOperationRef.current.op !== operation && displayImage) 
           ? displayImage 
           : baseImage;
           
@@ -218,7 +243,8 @@ export default function EditorPage() {
           // Destructive ops commit as new base
           if (!isLive) {
             setBaseImage(result.image);
-            setEditLog((prev) => [...prev, operation]);
+            const detailStr = formatOpDetails(operation, params);
+            setEditLog((prev) => [...prev, detailStr]);
             showToast(`Applied: ${operation}`);
           }
 
@@ -486,10 +512,10 @@ export default function EditorPage() {
                   <div style={{ marginTop: 16 }}>
                     <p style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>Edit History</p>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      {editLog.map((op, idx) => (
+                      {editLog.map((logMsg, idx) => (
                         <div key={idx} style={{ fontSize: 11, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ color: "var(--wine-light)", fontSize: 10 }}>•</span>
-                          {op.replace(/_/g, " ")}
+                          {logMsg}
                         </div>
                       ))}
                     </div>
