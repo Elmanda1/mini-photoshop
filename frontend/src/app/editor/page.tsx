@@ -36,6 +36,9 @@ const LIVE_OPERATIONS = new Set([
   "brightness_contrast",
   "hue_saturation",
   "jpeg",
+  "rotate",
+  "resize",
+  "translate"
 ]);
 
 export default function EditorPage() {
@@ -59,6 +62,9 @@ export default function EditorPage() {
   const [mlLoading, setMlLoading] = useState(false);
   const [compressionInfo, setCompressionInfo] = useState<any>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Track the last live operation so we can commit changes if the user switches tools
+  const lastOperationRef = useRef<string | null>(null);
 
   const liveRequestId = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -128,13 +134,31 @@ export default function EditorPage() {
       operation: string,
       params: Record<string, any>
     ) => {
-      if (!baseImage) return;
-
       const isLive = LIVE_OPERATIONS.has(operation);
-      // Live ops use base image; manual ops use current display
-      const sourceImage = isLive ? baseImage : (displayImage || baseImage);
+      
+      // If we switched to a different live operation (e.g. from rotate to brightness),
+      // we must commit the previous displayImage as the new baseImage to prevent losing the edit.
+      if (isLive && lastOperationRef.current && lastOperationRef.current !== operation && displayImage) {
+        setBaseImage(displayImage);
+      }
+      
+      if (isLive) {
+        lastOperationRef.current = operation;
+      } else {
+        lastOperationRef.current = null; // reset on manual ops
+      }
 
-      if (!isLive) setLoading(true);
+      // Live ops use the *current* baseImage (which might have just been updated above)
+      // Manual ops use displayImage if available, else baseImage
+      const currentBase = (isLive && lastOperationRef.current && lastOperationRef.current !== operation && displayImage) 
+          ? displayImage 
+          : baseImage;
+          
+      const sourceImage = isLive ? currentBase : (displayImage || baseImage);
+
+      if (!sourceImage) return;
+
+      setLoading(true); // Always show loading (skeleton on canvas)
 
       const requestId = ++liveRequestId.current;
 
@@ -214,7 +238,7 @@ export default function EditorPage() {
         }
       }
 
-      if (!isLive) setLoading(false);
+      setLoading(false);
     },
     [baseImage, displayImage]
   );
@@ -342,6 +366,7 @@ export default function EditorPage() {
             <ImageCanvas
               currentImage={displayImage}
               onImageUpload={handleImageUpload}
+              loading={loading}
             />
           </div>
 
@@ -533,44 +558,6 @@ export default function EditorPage() {
           </div>
         </div>
       </div>
-
-      {/* Loading overlay — manual ops only */}
-      {loading && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(17, 12, 14, 0.6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 900,
-            backdropFilter: "blur(6px)",
-          }}
-        >
-          <div
-            className="animate-fade-in-scale"
-            style={{
-              background: "var(--bg-elevated)",
-              border: "1px solid var(--border-color)",
-              borderRadius: "var(--radius-lg)",
-              padding: "24px 32px",
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              boxShadow: "var(--shadow-lg)",
-            }}
-          >
-            <div className="spinner" style={{ width: 22, height: 22 }} />
-            <span style={{ fontSize: 14, fontWeight: 500 }}>
-              Processing image...
-            </span>
-          </div>
-        </div>
-      )}
 
       {toast && <div className="toast">{toast}</div>}
     </div>

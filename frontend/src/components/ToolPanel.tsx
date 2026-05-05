@@ -171,10 +171,16 @@ export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps
 
   const debouncedCompressQuality = useDebounce(compressQuality, DEBOUNCE_MS);
 
+  const debouncedAngle = useDebounce(angle, DEBOUNCE_MS);
+  const debouncedScale = useDebounce(scale, DEBOUNCE_MS);
+  const debouncedTx = useDebounce(tx, DEBOUNCE_MS);
+  const debouncedTy = useDebounce(ty, DEBOUNCE_MS);
+
   // Track whether the user has interacted (to avoid auto-apply on mount)
   const bcInitRef = useRef(true);
   const colorInitRef = useRef(true);
   const compressInitRef = useRef(true);
+  const transformInitRef = useRef(true);
 
   // Auto-apply brightness/contrast
   useEffect(() => {
@@ -211,6 +217,32 @@ export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps
     if (!hasImage || loading) return;
     onApply("compress", "jpeg", { quality: debouncedCompressQuality });
   }, [debouncedCompressQuality]);
+
+  const prevAngle = useRef(angle);
+  const prevScale = useRef(scale);
+  const prevTx = useRef(tx);
+  const prevTy = useRef(ty);
+
+  // Auto-apply transforms
+  useEffect(() => {
+    if (transformInitRef.current) {
+      transformInitRef.current = false;
+      return;
+    }
+    if (!hasImage || loading) return;
+    
+    if (debouncedAngle !== prevAngle.current) {
+      prevAngle.current = debouncedAngle;
+      onApply("transform", "rotate", { angle: debouncedAngle });
+    } else if (debouncedScale !== prevScale.current) {
+      prevScale.current = debouncedScale;
+      onApply("transform", "resize", { scale: debouncedScale });
+    } else if (debouncedTx !== prevTx.current || debouncedTy !== prevTy.current) {
+      prevTx.current = debouncedTx;
+      prevTy.current = debouncedTy;
+      onApply("transform", "translate", { tx: debouncedTx, ty: debouncedTy });
+    }
+  }, [debouncedAngle, debouncedScale, debouncedTx, debouncedTy]);
 
   return (
     <div
@@ -252,11 +284,9 @@ export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps
           </div>
         </Section>
 
-        {/* Transform — manual buttons (destructive ops) */}
+        {/* Transform — LIVE sliders for rotate, scale, translate */}
         <Section title="Transform" icon={<RotateCw size={15} />}>
           <SliderControl label="Rotation" value={angle} min={0} max={360} step={1} onChange={setAngle} unit="°" />
-          <button className="btn-primary" style={{ width: "100%", marginBottom: 8 }} disabled={disabled}
-            onClick={() => onApply("transform", "rotate", { angle })}>Rotate</button>
           <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
             <button className="btn-secondary" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }} disabled={disabled}
               onClick={() => onApply("transform", "flip", { flip_code: 1 })}><FlipHorizontal2 size={13} /> H-Flip</button>
@@ -264,12 +294,11 @@ export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps
               onClick={() => onApply("transform", "flip", { flip_code: 0 })}><FlipVertical2 size={13} /> V-Flip</button>
           </div>
           <SliderControl label="Scale" value={scale} min={0.1} max={5.0} step={0.1} onChange={setScale} unit="x" />
-          <button className="btn-secondary" style={{ width: "100%", marginBottom: 10 }} disabled={disabled}
-            onClick={() => onApply("transform", "resize", { scale })}>Resize</button>
           <SliderControl label="Translate X" value={tx} min={-500} max={500} step={1} onChange={setTx} unit="px" />
           <SliderControl label="Translate Y" value={ty} min={-500} max={500} step={1} onChange={setTy} unit="px" />
-          <button className="btn-secondary" style={{ width: "100%" }} disabled={disabled}
-            onClick={() => onApply("transform", "translate", { tx, ty })}>Translate</button>
+          <p style={{ fontSize: 10, color: "var(--text-muted)", fontStyle: "italic", marginBottom: 0 }}>
+            ↑ Live — transforms apply as you drag
+          </p>
         </Section>
 
         {/* Noise Reduction */}
