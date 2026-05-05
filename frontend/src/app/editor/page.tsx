@@ -80,9 +80,13 @@ export default function EditorPage() {
   const [mlLoading, setMlLoading] = useState(false);
   const [compressionInfo, setCompressionInfo] = useState<any>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [editLog, setEditLog] = useState<string[]>([]);
-  const [history, setHistory] = useState<{ image: string; log: string[] }[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  
+  const [historyState, setHistoryState] = useState<{
+    list: { image: string; log: string[] }[];
+    index: number;
+  }>({ list: [], index: -1 });
+
+  const editLog = historyState.list[historyState.index]?.log || [];
 
   // Track the last live operation so we can commit changes if the user switches tools
   const lastOperationRef = useRef<{ op: string; params: any } | null>(null);
@@ -101,10 +105,11 @@ export default function EditorPage() {
     setDisplayImage(base64);
     setMlResult(null);
     setCompressionInfo(null);
-    const initialLog: string[] = [];
-    setEditLog(initialLog);
-    setHistory([{ image: base64, log: initialLog }]);
-    setHistoryIndex(0);
+    
+    setHistoryState({
+      list: [{ image: base64, log: [] }],
+      index: 0
+    });
 
     try {
       const hist = await getHistogram(base64);
@@ -121,10 +126,10 @@ export default function EditorPage() {
     setMlResult(null);
     setCompressionInfo(null);
     
-    const initialLog: string[] = [];
-    setEditLog(initialLog);
-    setHistory([{ image: uploadedImage, log: initialLog }]);
-    setHistoryIndex(0);
+    setHistoryState({
+      list: [{ image: uploadedImage, log: [] }],
+      index: 0
+    });
     
     showToast("Reset to original");
 
@@ -160,18 +165,20 @@ export default function EditorPage() {
   };
 
   const pushHistory = useCallback((newImage: string, newOpDetail: string) => {
-    const nextLog = [...editLog, newOpDetail];
-    setEditLog(nextLog);
     setBaseImage(newImage);
 
-    setHistory((prev) => {
-      const newHistory = prev.slice(0, historyIndex + 1);
-      newHistory.push({ image: newImage, log: nextLog });
-      if (newHistory.length > 20) newHistory.shift();
-      setHistoryIndex(newHistory.length - 1);
-      return newHistory;
+    setHistoryState((prev) => {
+      const currentLog = prev.list[prev.index]?.log || [];
+      const nextLog = [...currentLog, newOpDetail];
+      const newList = prev.list.slice(0, prev.index + 1);
+      newList.push({ image: newImage, log: nextLog });
+      
+      if (newList.length > 20) {
+        newList.shift();
+      }
+      return { list: newList, index: newList.length - 1 };
     });
-  }, [editLog, historyIndex]);
+  }, []);
 
   const handleApply = useCallback(
     async (
@@ -181,9 +188,9 @@ export default function EditorPage() {
     ) => {
       const isLive = LIVE_OPERATIONS.has(operation);
       
-      // If we switched to a different live operation (e.g. from rotate to brightness),
+      // If there's an uncommitted live operation, and we're starting a DIFFERENT operation (live or manual)
       // we must commit the previous displayImage as the new baseImage to prevent losing the edit.
-      if (isLive && lastOperationRef.current && lastOperationRef.current.op !== operation && displayImage) {
+      if (lastOperationRef.current && lastOperationRef.current.op !== operation && displayImage) {
         const lastOp = lastOperationRef.current.op;
         const lastParams = lastOperationRef.current.params;
         const detailStr = formatOpDetails(lastOp, lastParams);
@@ -293,28 +300,34 @@ export default function EditorPage() {
   );
 
   const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIdx = historyIndex - 1;
-      const state = history[newIdx];
-      setHistoryIndex(newIdx);
-      setBaseImage(state.image);
-      setDisplayImage(state.image);
-      setEditLog(state.log);
-      getHistogram(state.image).then(setHistData).catch(() => {});
-    }
-  }, [history, historyIndex]);
+    setHistoryState((prev) => {
+      if (prev.index > 0) {
+        const newIdx = prev.index - 1;
+        const state = prev.list[newIdx];
+        setBaseImage(state.image);
+        setDisplayImage(state.image);
+        lastOperationRef.current = null;
+        getHistogram(state.image).then(setHistData).catch(() => {});
+        return { ...prev, index: newIdx };
+      }
+      return prev;
+    });
+  }, []);
 
   const handleRedo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const newIdx = historyIndex + 1;
-      const state = history[newIdx];
-      setHistoryIndex(newIdx);
-      setBaseImage(state.image);
-      setDisplayImage(state.image);
-      setEditLog(state.log);
-      getHistogram(state.image).then(setHistData).catch(() => {});
-    }
-  }, [history, historyIndex]);
+    setHistoryState((prev) => {
+      if (prev.index < prev.list.length - 1) {
+        const newIdx = prev.index + 1;
+        const state = prev.list[newIdx];
+        setBaseImage(state.image);
+        setDisplayImage(state.image);
+        lastOperationRef.current = null;
+        getHistogram(state.image).then(setHistData).catch(() => {});
+        return { ...prev, index: newIdx };
+      }
+      return prev;
+    });
+  }, []);
 
   return (
     <div
@@ -442,8 +455,8 @@ export default function EditorPage() {
               loading={loading}
               onUndo={handleUndo}
               onRedo={handleRedo}
-              canUndo={historyIndex > 0}
-              canRedo={historyIndex < history.length - 1}
+              canUndo={historyState.index > 0}
+              canRedo={historyState.index < historyState.list.length - 1}
             />
           </div>
 
