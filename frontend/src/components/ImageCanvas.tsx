@@ -5,6 +5,7 @@ import { useDropzone } from "react-dropzone";
 import { Upload, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2 } from "lucide-react";
 
 interface ImageCanvasProps {
+  originalImage?: string | null;
   currentImage: string | null;
   onImageUpload: (base64: string) => void;
   loading?: boolean;
@@ -15,6 +16,7 @@ interface ImageCanvasProps {
 }
 
 export default function ImageCanvas({
+  originalImage,
   currentImage,
   onImageUpload,
   loading = false,
@@ -123,6 +125,16 @@ export default function ImageCanvas({
     );
   }
 
+  const imageStyle = {
+    transform: `scale(${zoom})`,
+    transformOrigin: "top left",
+    maxWidth: "100%",
+    maxHeight: "100%",
+    objectFit: "contain" as const,
+    transition: "transform 0.2s ease, filter 0.2s ease",
+    borderRadius: "var(--radius-sm)",
+  };
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
       {/* Zoom controls */}
@@ -169,32 +181,29 @@ export default function ImageCanvas({
         )}
       </div>
 
-      {/* Single image canvas */}
-      <div
-        className="canvas-checkerboard"
-        style={{
-          flex: 1,
-          overflow: "auto",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          padding: 24,
-          position: "relative",
-        }}
-      >
-        <img
-          src={`data:image/png;base64,${currentImage}`}
-          alt="Image"
-          style={{
-            transform: `scale(${zoom})`,
-            transformOrigin: "center center",
-            maxWidth: "100%",
-            maxHeight: "100%",
-            objectFit: "contain",
-            transition: "transform 0.2s ease, filter 0.2s ease",
-            borderRadius: "var(--radius-sm)",
-          }}
-        />
+      {/* Split image canvas */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        
+        {/* LEFT: Before (Original) */}
+        <div style={{ flex: 1, borderRight: "1px dashed rgba(255,255,255,0.1)", position: "relative", display: "flex", flexDirection: "column" }}>
+          <div style={{ position: "absolute", top: 12, left: 16, zIndex: 10, background: "rgba(0,0,0,0.6)", padding: "4px 10px", borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "var(--text-secondary)" }}>
+            BEFORE
+          </div>
+          <div className="canvas-checkerboard" style={{ flex: 1, overflow: "auto", display: "flex", justifyContent: "center", alignItems: "center", padding: 24 }}>
+             <img src={`data:image/png;base64,${originalImage || currentImage}`} alt="Original Image" style={imageStyle} />
+          </div>
+        </div>
+
+        {/* RIGHT: After (Live Updated) */}
+        <div style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
+          <div style={{ position: "absolute", top: 12, left: 16, zIndex: 10, background: "var(--wine-bg-strong)", border: "1px solid var(--border-wine)", padding: "4px 10px", borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "var(--wine-light)" }}>
+            AFTER
+          </div>
+          <div className="canvas-checkerboard" style={{ flex: 1, overflow: "auto", display: "flex", justifyContent: "center", alignItems: "center", padding: 24 }}>
+             <img src={`data:image/png;base64,${currentImage}`} alt="Edited Image" style={{ ...imageStyle, filter: loading ? "blur(4px) grayscale(50%)" : "none" }} />
+          </div>
+        </div>
+
       </div>
     </div>
   );

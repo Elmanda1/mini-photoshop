@@ -450,6 +450,7 @@ export default function EditorPage() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
           <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
             <ImageCanvas
+              originalImage={uploadedImage}
               currentImage={displayImage}
               onImageUpload={handleImageUpload}
               loading={loading}

@@ -243,9 +243,6 @@ export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps
         <Section title="Enhancement" icon={<Sun size={15} />} defaultOpen={true}>
           <SliderControl label="Brightness" value={brightness} min={-100} max={100} step={1} onChange={setBrightness} />
           <SliderControl label="Contrast" value={contrast} min={0.5} max={3.0} step={0.1} onChange={setContrast} />
-          <p style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 8, fontStyle: "italic" }}>
-            ↑ Live — changes apply as you drag
-          </p>
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
             <button className="btn-secondary" style={{ flex: 1 }} disabled={disabled}
               onClick={() => onApply("enhance", "histogram_eq", {})}>Hist EQ</button>
@@ -350,9 +347,6 @@ export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps
           </div>
           <SliderControl label="Hue Shift" value={hueShift} min={-180} max={180} step={1} onChange={setHueShift} unit="°" />
           <SliderControl label="Saturation" value={satScale} min={0} max={3.0} step={0.1} onChange={setSatScale} unit="x" />
-          <p style={{ fontSize: 10, color: "var(--text-muted)", fontStyle: "italic" }}>
-            ↑ Live — changes apply as you drag
-          </p>
         </Section>
 
         {/* Segmentation */}
@@ -377,9 +371,6 @@ export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps
         {/* Compression — LIVE slider */}
         <Section title="Compression" icon={<Archive size={15} />}>
           <SliderControl label="JPEG Quality" value={compressQuality} min={1} max={100} step={1} onChange={setCompressQuality} unit="%" />
-          <p style={{ fontSize: 10, color: "var(--text-muted)", fontStyle: "italic" }}>
-            ↑ Live — compresses as you drag
-          </p>
         </Section>
 
         {/* AI Recognition */}
