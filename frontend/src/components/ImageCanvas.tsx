@@ -9,10 +9,15 @@ interface ImageCanvasProps {
   currentImage: string | null;
   onImageUpload: (base64: string) => void;
   loading?: boolean;
-  onUndo?: () => void;
-  onRedo?: () => void;
-  canUndo?: boolean;
-  canRedo?: boolean;
+  zoom: number;
+  liveFilters?: {
+    brightness: number;
+    contrast: number;
+    hueShift: number;
+    saturation: number;
+    rotation: number;
+  };
+  imageDimensions?: { width: number; height: number } | null;
 }
 
 export default function ImageCanvas({
@@ -20,12 +25,14 @@ export default function ImageCanvas({
   currentImage,
   onImageUpload,
   loading = false,
-  onUndo,
-  onRedo,
-  canUndo,
-  canRedo,
+  zoom,
+  liveFilters,
+  imageDimensions,
 }: ImageCanvasProps) {
-  const [zoom, setZoom] = React.useState(1);
+  const [pan, setPan] = React.useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const imgRef = React.useRef<HTMLImageElement>(null);
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
@@ -52,9 +59,91 @@ export default function ImageCanvas({
     multiple: false,
   });
 
-  const handleZoomIn = () => setZoom((z) => Math.min(z + 0.25, 5));
-  const handleZoomOut = () => setZoom((z) => Math.max(z - 0.25, 0.25));
-  const handleResetZoom = () => setZoom(1);
+  const [filterHold, setFilterHold] = React.useState<any>(null);
+  const prevImage = React.useRef<string | null>(null);
+  const lastValidFilters = React.useRef<any>(null);
+
+  // Capture filters before they are reset by the parent
+  if (liveFilters && (liveFilters.brightness !== 0 || liveFilters.contrast !== 1.0 || liveFilters.rotation !== 0)) {
+    lastValidFilters.current = liveFilters;
+  }
+
+  React.useEffect(() => {
+    // Detect when the image has been updated from the backend (Apply happened)
+    if (prevImage.current && currentImage !== prevImage.current) {
+      // Hold the PREVIOUS filters for a short period to cover the render gap
+      setFilterHold(true);
+      const timer = setTimeout(() => setFilterHold(false), 150); // Increased to 150ms for safety
+      return () => clearTimeout(timer);
+    }
+    prevImage.current = currentImage;
+  }, [currentImage]);
+
+  const liveFiltersStyle = React.useMemo(() => {
+    // Determine which filters to use: the current ones, or the 'hold' ones
+    const activeFilters = (filterHold && lastValidFilters.current) ? lastValidFilters.current : liveFilters;
+    
+    if (!activeFilters) return { filter: "none", rotation: 0 };
+    
+    const filterStr = `
+      brightness(${100 * (1 + activeFilters.brightness / 100)}%)
+      contrast(${100 * activeFilters.contrast}%)
+      hue-rotate(${activeFilters.hueShift}deg)
+      saturate(${100 * activeFilters.saturation}%)
+    `;
+    return {
+      filter: filterStr,
+      rotation: activeFilters.rotation || 0,
+    };
+  }, [liveFilters, filterHold]);
+
+  const beforeStyle = React.useMemo(() => ({
+    transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
+    transformOrigin: "center" as const,
+    willChange: "transform",
+    maxWidth: "100%",
+    maxHeight: "100%",
+    objectFit: "contain" as const,
+    transition: isDragging ? "none" : "transform 0.15s ease",
+    borderRadius: "var(--radius-sm)",
+    backfaceVisibility: "hidden" as const,
+  }), [zoom, pan, isDragging]);
+
+  const imageStyle = React.useMemo(() => ({
+    ...beforeStyle,
+    transform: `${beforeStyle.transform} rotate(${liveFiltersStyle.rotation}deg)`,
+    filter: liveFiltersStyle.filter,
+    cursor: isDragging ? "grabbing" : "grab",
+    // Remove transitions entirely as requested for a snappier, non-floaty feel
+    transition: "none",
+  }), [beforeStyle, liveFiltersStyle, isDragging]);
+
+  // ─── Crop Interaction Logic ───
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = React.useCallback((e: MouseEvent) => {
+    if (isDragging) {
+      setPan((prev) => ({
+        x: prev.x + (e.movementX || 0),
+        y: prev.y + (e.movementY || 0),
+      }));
+    }
+  }, [isDragging]);
+
+  const handleMouseUp = React.useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  React.useEffect(() => {
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
 
   // No image — dropzone
   if (!currentImage) {
@@ -125,85 +214,41 @@ export default function ImageCanvas({
     );
   }
 
-  const imageStyle = {
-    transform: `scale(${zoom})`,
-    transformOrigin: "top left",
-    maxWidth: "100%",
-    maxHeight: "100%",
-    objectFit: "contain" as const,
-    transition: "transform 0.2s ease, filter 0.2s ease",
-    borderRadius: "var(--radius-sm)",
-  };
-
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-      {/* Zoom controls */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          padding: "5px 16px",
-          borderBottom: "1px solid var(--border-color)",
-          background: "var(--bg-secondary)",
+      <div 
+        style={{ 
+          flex: 1, 
+          display: "flex", 
+          overflow: "hidden",
+          cursor: isDragging ? "grabbing" : "grab"
         }}
+        onMouseDown={(e) => handleMouseDown(e)}
       >
-        <button className="btn-icon" onClick={handleZoomOut} title="Zoom Out">
-          <ZoomOut size={14} />
-        </button>
-        <span
-          style={{
-            fontSize: 11,
-            color: "var(--text-muted)",
-            minWidth: 40,
-            textAlign: "center",
-            fontFamily: "var(--font-mono)",
-          }}
-        >
-          {Math.round(zoom * 100)}%
-        </span>
-        <button className="btn-icon" onClick={handleZoomIn} title="Zoom In">
-          <ZoomIn size={14} />
-        </button>
-        <button className="btn-icon" onClick={handleResetZoom} title="Fit">
-          <Maximize2 size={14} />
-        </button>
-        <div style={{ flex: 1 }} />
-        {onUndo && (
-          <button className="btn-icon" onClick={onUndo} disabled={!canUndo} title="Undo" style={{ opacity: canUndo ? 1 : 0.5 }}>
-            <Undo2 size={14} />
-          </button>
-        )}
-        {onRedo && (
-          <button className="btn-icon" onClick={onRedo} disabled={!canRedo} title="Redo" style={{ opacity: canRedo ? 1 : 0.5 }}>
-            <Redo2 size={14} />
-          </button>
-        )}
-      </div>
-
-      {/* Split image canvas */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        
         {/* LEFT: Before (Original) */}
         <div style={{ flex: 1, borderRight: "1px dashed rgba(255,255,255,0.1)", position: "relative", display: "flex", flexDirection: "column" }}>
           <div style={{ position: "absolute", top: 12, left: 16, zIndex: 10, background: "rgba(0,0,0,0.6)", padding: "4px 10px", borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "var(--text-secondary)" }}>
             BEFORE
           </div>
-          <div className="canvas-checkerboard" style={{ flex: 1, overflow: "auto", display: "flex", justifyContent: "center", alignItems: "center", padding: 24 }}>
-             <img src={`data:image/png;base64,${originalImage || currentImage}`} alt="Original Image" style={imageStyle} />
+          <div className="canvas-checkerboard" style={{ flex: 1, overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center", padding: 24, userSelect: "none" }}>
+              <img src={`data:image/png;base64,${originalImage || currentImage}`} alt="Original Image" style={beforeStyle} draggable={false} />
           </div>
         </div>
 
         {/* RIGHT: After (Live Updated) */}
-        <div style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
+        <div style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column", background: "#000" }}>
           <div style={{ position: "absolute", top: 12, left: 16, zIndex: 10, background: "var(--wine-bg-strong)", border: "1px solid var(--border-wine)", padding: "4px 10px", borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "var(--wine-light)" }}>
             AFTER
           </div>
-          <div className="canvas-checkerboard" style={{ flex: 1, overflow: "auto", display: "flex", justifyContent: "center", alignItems: "center", padding: 24 }}>
-             <img src={`data:image/png;base64,${currentImage}`} alt="Edited Image" style={{ ...imageStyle, filter: loading ? "blur(4px) grayscale(50%)" : "none" }} />
+          <div className="canvas-checkerboard" style={{ flex: 1, overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center", padding: 24, userSelect: "none", background: "#000" }}>
+            <img 
+              src={`data:image/png;base64,${currentImage}`} 
+              alt="Edited Image" 
+              style={imageStyle} 
+              draggable={false} 
+            />
           </div>
         </div>
-
       </div>
     </div>
   );
