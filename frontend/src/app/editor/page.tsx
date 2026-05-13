@@ -16,15 +16,63 @@ import {
   getHistogram,
   recognizeObject,
 } from "@/lib/api";
+import CropResizeModal from "@/components/CropResizeModal";
+
 import {
   RotateCcw,
   Download,
   BarChart3,
-  Activity,
   ArrowLeft,
   Upload,
+  Home,
+  Check,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Activity,
+  Undo2,
+  Redo2
 } from "lucide-react";
 import Link from "next/link";
+
+const MenuButton = ({ label, children }: { label: string; children: React.ReactNode }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      style={{ position: "relative", padding: "4px 8px", cursor: "pointer", background: open ? "var(--bg-elevated)" : "transparent" }}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      {label}
+      {open && (
+        <div style={{
+          position: "absolute", top: "100%", left: 0, background: "var(--bg-elevated)",
+          border: "1px solid var(--border-color)", minWidth: 180, zIndex: 100,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.5)", padding: "4px 0", borderRadius: 4
+        }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const MenuItem = ({ label, onClick, shortcut, disabled }: { label: string; onClick?: () => void; shortcut?: string; disabled?: boolean }) => (
+  <div
+    style={{
+      padding: "6px 16px", fontSize: 12, display: "flex", justifyContent: "space-between",
+      color: disabled ? "var(--text-muted)" : "var(--text-primary)",
+      cursor: disabled ? "default" : "pointer",
+      background: "transparent"
+    }}
+    onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = "var(--bg-hover)"; }}
+    onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.background = "transparent"; }}
+    onClick={() => { if (!disabled && onClick) onClick(); }}
+  >
+    <span>{label}</span>
+    {shortcut && <span style={{ color: "var(--text-muted)" }}>{shortcut}</span>}
+  </div>
+);
 
 /**
  * Single-image live editor.
@@ -41,7 +89,7 @@ const LIVE_OPERATIONS = new Set([
 const formatOpDetails = (op: string, params: any) => {
   const name = op.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
   let details = "";
-  
+
   if (!params || Object.keys(params).length === 0) return name;
 
   if (op === "brightness_contrast") details = `B: ${params.brightness}, C: ${params.contrast}`;
@@ -55,7 +103,7 @@ const formatOpDetails = (op: string, params: any) => {
   else if (op === "sharpen") details = `Intensity: ${params.intensity}`;
   else if (op === "add_noise") details = `Amount: ${params.noise_amount}`;
   else if (op === "segment") details = `Method: ${params.method || "auto"}`;
-  
+
   return details ? `${name} (${details})` : name;
 };
 
@@ -80,13 +128,67 @@ export default function EditorPage() {
   const [mlLoading, setMlLoading] = useState(false);
   const [compressionInfo, setCompressionInfo] = useState<any>(null);
   const [toast, setToast] = useState<string | null>(null);
-  
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
+
+  const [exportFormat, setExportFormat] = useState("png");
+  const [exportQuality, setExportQuality] = useState(90);
+
+  const [zoom, setZoom] = useState(1);
+const [liveFilters, setLiveFilters] = useState({
+  brightness: 0,
+  contrast: 1.0,
+  hueShift: 0,
+  saturation: 1.0,
+  rotation: 0,
+});
+
   const [historyState, setHistoryState] = useState<{
     list: { image: string; log: string[] }[];
     index: number;
   }>({ list: [], index: -1 });
 
   const editLog = historyState.list[historyState.index]?.log || [];
+
+  // Ref to hold the fast preview image (compressed)
+  const previewImageRef = useRef<{ base: string; preview: string } | null>(null);
+
+  const getPreviewImage = async (base64: string): Promise<string> => {
+    if (previewImageRef.current?.base === base64) {
+      return previewImageRef.current.preview;
+    }
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        const maxWidth = 800; // compress for smooth preview
+        if (width <= maxWidth) {
+          previewImageRef.current = { base: base64, preview: base64 };
+          resolve(base64);
+          return;
+        }
+        const scale = maxWidth / width;
+        width = maxWidth;
+        height = height * scale;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(base64);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.6);
+        const previewBase64 = dataUrl.split(",")[1];
+        previewImageRef.current = { base: base64, preview: previewBase64 };
+        resolve(previewBase64);
+      };
+      img.onerror = () => resolve(base64);
+      img.src = `data:image/png;base64,${base64}`;
+    });
+  };
 
   // Track the last live operation so we can commit changes if the user switches tools
   const lastOperationRef = useRef<{ op: string; params: any } | null>(null);
@@ -105,19 +207,26 @@ export default function EditorPage() {
     setDisplayImage(base64);
     setMlResult(null);
     setCompressionInfo(null);
-    
+
     setHistoryState({
       list: [{ image: base64, log: [] }],
       index: 0
     });
 
     try {
+      const img = new Image();
+      img.onload = () => {
+        setImageDimensions({ width: img.width, height: img.height });
+      };
+      img.src = `data:image/png;base64,${base64}`;
+
       const hist = await getHistogram(base64);
       setHistData(hist);
-    } catch {}
+    } catch { }
 
     showToast("Image loaded");
   }, []);
+
 
   const handleReset = () => {
     if (!uploadedImage) return;
@@ -125,16 +234,16 @@ export default function EditorPage() {
     setDisplayImage(uploadedImage);
     setMlResult(null);
     setCompressionInfo(null);
-    
+
     setHistoryState({
       list: [{ image: uploadedImage, log: [] }],
       index: 0
     });
-    
+
     showToast("Reset to original");
 
     // Update histogram
-    getHistogram(uploadedImage).then(setHistData).catch(() => {});
+    getHistogram(uploadedImage).then(setHistData).catch(() => { });
   };
 
   const handleSave = () => {
@@ -143,7 +252,53 @@ export default function EditorPage() {
     link.href = `data:image/png;base64,${displayImage}`;
     link.download = "mini-photoshop-output.png";
     link.click();
-    showToast("Image saved");
+    showToast("Quick Save (PNG)");
+  };
+
+  const handleExport = () => {
+    if (!displayImage) return;
+    setLoading(true);
+
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        setLoading(false);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0);
+
+      let mimeType = "image/png";
+      let extension = "png";
+
+      if (exportFormat === "jpg") {
+        mimeType = "image/jpeg";
+        extension = "jpg";
+      } else if (exportFormat === "webp") {
+        mimeType = "image/webp";
+        extension = "webp";
+      }
+
+      const quality = exportQuality / 100;
+      const dataUrl = canvas.toDataURL(mimeType, quality);
+
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `mini-photoshop-export.${extension}`;
+      link.click();
+
+      setLoading(false);
+      showToast(`Exported as ${exportFormat.toUpperCase()}`);
+    };
+    img.onerror = () => {
+      setLoading(false);
+      showToast("Export failed");
+    };
+    img.src = `data:image/png;base64,${displayImage}`;
   };
 
   const handleNewImage = () => {
@@ -172,7 +327,7 @@ export default function EditorPage() {
       const nextLog = [...currentLog, newOpDetail];
       const newList = prev.list.slice(0, prev.index + 1);
       newList.push({ image: newImage, log: nextLog });
-      
+
       if (newList.length > 20) {
         newList.shift();
       }
@@ -180,40 +335,48 @@ export default function EditorPage() {
     });
   }, []);
 
+  const lastLiveCall = useRef<number>(0);
+  const liveTimeout = useRef<NodeJS.Timeout | null>(null);
+
   const handleApply = useCallback(
     async (
       module: string,
       operation: string,
-      params: Record<string, any>
+      params: Record<string, any>,
+      isPreview: boolean = false
     ) => {
-      const isLive = LIVE_OPERATIONS.has(operation);
-      
-      // If there's an uncommitted live operation, and we're starting a DIFFERENT operation (live or manual)
-      // we must commit the previous displayImage as the new baseImage to prevent losing the edit.
-      if (lastOperationRef.current && lastOperationRef.current.op !== operation && displayImage) {
-        const lastOp = lastOperationRef.current.op;
-        const lastParams = lastOperationRef.current.params;
-        const detailStr = formatOpDetails(lastOp, lastParams);
-        pushHistory(displayImage, detailStr);
-      }
-      
+      const isLive = isPreview;
+
       if (isLive) {
+        const now = Date.now();
+        if (now - lastLiveCall.current < 150) {
+          if (liveTimeout.current) clearTimeout(liveTimeout.current);
+          liveTimeout.current = setTimeout(() => {
+            handleApply(module, operation, params, true);
+          }, 150);
+          return;
+        }
+        lastLiveCall.current = now;
         lastOperationRef.current = { op: operation, params };
       } else {
         lastOperationRef.current = null; // reset on manual ops
+        if (liveTimeout.current) clearTimeout(liveTimeout.current);
       }
 
-      // Live ops use the *current* baseImage (which might have just been updated above)
-      // Manual ops use displayImage if available, else baseImage
-      const currentBase = (isLive && lastOperationRef.current && lastOperationRef.current.op !== operation && displayImage) 
-          ? displayImage 
-          : baseImage;
-          
-      const sourceImage = isLive ? currentBase : (displayImage || baseImage);
+      // Live ops use the *current* baseImage
+      const currentBase = baseImage;
 
-      if (!sourceImage) return;
+      const rawSourceImage = currentBase || displayImage;
 
-      setLoading(true); // Always show loading (skeleton on canvas)
+      if (!rawSourceImage) return;
+
+      // setLoading(true); // Removed to prevent canvas flicker during apply
+
+      const sourceImage = isLive ? await getPreviewImage(rawSourceImage) : rawSourceImage;
+
+      // All operations (including live previews) are now processed by the backend.
+      // This ensures 100% pixel-perfect consistency between the preview and the final applied image,
+      // preventing visual jumps caused by CSS filter math differing from OpenCV math.
 
       const requestId = ++liveRequestId.current;
 
@@ -267,22 +430,29 @@ export default function EditorPage() {
         if (isLive && requestId !== liveRequestId.current) return;
 
         if (result?.image) {
-          setDisplayImage(result.image);
-
-          // Destructive ops commit as new base
           if (!isLive) {
-            const detailStr = formatOpDetails(operation, params);
-            pushHistory(result.image, detailStr);
-            showToast(`Applied: ${operation}`);
+            // ZERO FLICKER: Keep the old state visible (including filters) until the new image is physically ready
+            const img = new Image();
+            img.onload = () => {
+              // Now that the new bits are in the browser's memory, we swap everything at once
+              setDisplayImage(result.image);
+              setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0 });
+              setImageDimensions({ width: img.width, height: img.height });
+              
+              const detailStr = formatOpDetails(operation, params);
+              pushHistory(result.image, detailStr);
+              showToast(`Applied: ${operation}`);
+              setLoading(false);
+            };
+            img.onerror = () => {
+              setLoading(false);
+              showToast("Failed to render result");
+            };
+            img.src = `data:image/png;base64,${result.image}`;
+            return;
+          } else {
+            setDisplayImage(result.image);
           }
-
-          // Update histogram
-          try {
-            const hist = await getHistogram(result.image);
-            if (!isLive || requestId === liveRequestId.current) {
-              setHistData(hist);
-            }
-          } catch {}
         } else if (result?.error) {
           showToast(`Error: ${result.error}`);
         }
@@ -306,8 +476,13 @@ export default function EditorPage() {
         const state = prev.list[newIdx];
         setBaseImage(state.image);
         setDisplayImage(state.image);
+
+        const img = new Image();
+        img.onload = () => setImageDimensions({ width: img.width, height: img.height });
+        img.src = `data:image/png;base64,${state.image}`;
+
         lastOperationRef.current = null;
-        getHistogram(state.image).then(setHistData).catch(() => {});
+        getHistogram(state.image).then(setHistData).catch(() => { });
         return { ...prev, index: newIdx };
       }
       return prev;
@@ -321,13 +496,45 @@ export default function EditorPage() {
         const state = prev.list[newIdx];
         setBaseImage(state.image);
         setDisplayImage(state.image);
+
+        const img = new Image();
+        img.onload = () => setImageDimensions({ width: img.width, height: img.height });
+        img.src = `data:image/png;base64,${state.image}`;
+
         lastOperationRef.current = null;
-        getHistogram(state.image).then(setHistData).catch(() => {});
+        getHistogram(state.image).then(setHistData).catch(() => { });
         return { ...prev, index: newIdx };
       }
       return prev;
     });
   }, []);
+
+  // ─── Keyboard Shortcuts ───
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key.toLowerCase() === "z" && !e.shiftKey) {
+          e.preventDefault();
+          if (historyState.index > 0) handleUndo();
+        } else if (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey)) {
+          e.preventDefault();
+          if (historyState.index < historyState.list.length - 1) handleRedo();
+        }
+      } else {
+        if (e.key.toLowerCase() === "c" && uploadedImage && !isCropModalOpen) {
+          e.preventDefault();
+          setIsCropModalOpen(true);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [historyState.index, historyState.list.length, handleUndo, handleRedo]);
 
   return (
     <div
@@ -338,43 +545,138 @@ export default function EditorPage() {
         background: "var(--bg-primary)",
       }}
     >
-      {/* ═══ Toolbar ═══ */}
+      {/* ═══ Top Menu Bar (Photoshop Style) ═══ */}
+      <div style={{
+        display: "flex", alignItems: "center", height: 28,
+        background: "var(--bg-tertiary)", borderBottom: "1px solid var(--bg-primary)",
+        padding: "0 12px", fontSize: 12, color: "var(--text-secondary)", gap: 16,
+        userSelect: "none"
+      }}>
+        <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-0.02em", paddingRight: 8 }}>
+          <span style={{ color: "var(--wine-light)" }}>Mini</span>{" "}
+          <span style={{ color: "var(--text-primary)" }}>Photoshop</span>
+        </span>
+        <div style={{ display: "flex", gap: 2 }}>
+          <MenuButton label="File">
+            <MenuItem label="New Image..." shortcut="Ctrl+N" onClick={handleNewImage} />
+            <div style={{ height: 1, background: "var(--border-color)", margin: "4px 0" }} />
+            <MenuItem label="Quick Save (PNG)" shortcut="Ctrl+S" disabled={!displayImage} onClick={handleSave} />
+            <MenuItem label="Export As..." disabled={!displayImage} onClick={() => document.getElementById('export-panel')?.scrollIntoView({ behavior: 'smooth' })} />
+          </MenuButton>
+          <MenuButton label="Edit">
+            <MenuItem label="Undo" shortcut="Ctrl+Z" disabled={historyState.index <= 0} onClick={handleUndo} />
+            <MenuItem label="Redo" shortcut="Ctrl+Shift+Z" disabled={historyState.index >= historyState.list.length - 1} onClick={handleRedo} />
+            <div style={{ height: 1, background: "var(--border-color)", margin: "4px 0" }} />
+            <MenuItem label="Reset to Original" disabled={!uploadedImage || displayImage === uploadedImage} onClick={handleReset} />
+          </MenuButton>
+          <MenuButton label="Image">
+            <MenuItem label="Adjustments" disabled />
+            <MenuItem label="Image Size..." disabled />
+            <MenuItem label="Canvas Size..." disabled />
+          </MenuButton>
+          <MenuButton label="Layer">
+            <MenuItem label="New" disabled />
+            <MenuItem label="Duplicate Layer..." disabled />
+          </MenuButton>
+          <MenuButton label="Filter">
+            <MenuItem label="Noise" disabled />
+            <MenuItem label="Blur" disabled />
+            <MenuItem label="Sharpen" disabled />
+          </MenuButton>
+          <MenuButton label="View">
+            <MenuItem label={showHistogram ? "Hide Histogram" : "Show Histogram"} onClick={() => setShowHistogram(!showHistogram)} />
+          </MenuButton>
+          <MenuButton label="Help">
+            <MenuItem label="About Mini Photoshop" />
+          </MenuButton>
+        </div>
+      </div>
+
+      {/* ═══ Options Bar ═══ */}
       <header
         style={{
           display: "flex",
           alignItems: "center",
-          padding: "0 16px",
-          height: 48,
+          padding: "0 12px",
+          height: 36,
           borderBottom: "1px solid var(--border-color)",
           background: "var(--bg-secondary)",
-          gap: 8,
+          gap: 12,
           flexShrink: 0,
           zIndex: 10,
         }}
       >
-        <Link href="/" style={{ textDecoration: "none" }}>
-          <button className="btn-icon" title="Back to Home">
-            <ArrowLeft size={15} />
+        <Link href="/" style={{ textDecoration: "none", display: "flex" }}>
+          <button className="btn-icon" title="Home" style={{ padding: 4 }}>
+            <Home size={15} />
           </button>
         </Link>
+        <div style={{ width: 1, height: 18, background: "var(--border-color)" }} />
 
-        <div style={{ width: 1, height: 22, background: "var(--border-color)" }} />
+        {/* Zoom Controls */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button className="btn-icon" onClick={() => setZoom((z) => Math.max(z - 0.25, 0.25))} title="Zoom Out">
+            <ZoomOut size={15} />
+          </button>
+          <span
+            style={{
+              fontSize: 11,
+              color: "var(--text-muted)",
+              minWidth: 40,
+              textAlign: "center",
+              fontFamily: "var(--font-mono)",
+            }}
+          >
+            {Math.round(zoom * 100)}%
+          </span>
+          <button className="btn-icon" onClick={() => setZoom((z) => Math.min(z + 0.25, 5))} title="Zoom In">
+            <ZoomIn size={15} />
+          </button>
+          <button className="btn-icon" onClick={() => setZoom(1)} title="Fit">
+            <Maximize2 size={15} />
+          </button>
+        </div>
 
-        <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.02em" }}>
-          <span style={{ color: "var(--wine-light)" }}>Mini</span>{" "}
-          <span style={{ color: "var(--text-primary)" }}>Photoshop</span>
-        </span>
+        <div style={{ width: 1, height: 18, background: "var(--border-color)" }} />
 
-        <div style={{ width: 1, height: 22, background: "var(--border-color)", margin: "0 2px" }} />
+        {/* Undo / Redo */}
+        <div style={{ display: "flex", gap: 4 }}>
+          <button className="btn-icon" title="Undo" disabled={historyState.index <= 0} onClick={handleUndo}>
+            <Undo2 size={15} />
+          </button>
+          <button className="btn-icon" title="Redo" disabled={historyState.index >= historyState.list.length - 1} onClick={handleRedo}>
+            <Redo2 size={15} />
+          </button>
+        </div>
 
-        {/* Actions */}
-        <button
-          className="btn-icon tooltip"
-          data-tooltip="New Image"
-          onClick={handleNewImage}
+        <div style={{ width: 1, height: 18, background: "var(--border-color)" }} />
+
+        <label
+          style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-secondary)", cursor: "pointer", userSelect: "none" }}
+          onClick={() => setShowHistogram(!showHistogram)}
         >
-          <Upload size={14} />
-        </button>
+          <div style={{ width: 12, height: 12, border: "1px solid var(--border-color)", borderRadius: 2, display: "flex", alignItems: "center", justifyContent: "center", background: showHistogram ? "var(--wine-bg-strong)" : "transparent" }}>
+            {showHistogram && <Check size={10} color="var(--wine-light)" />}
+          </div>
+          Show Histogram
+        </label>
+
+        <div style={{ flex: 1 }} />
+
+        {uploadedImage && (
+          <button
+            className="btn-secondary"
+            onClick={handleReset}
+            title="Reset to Original"
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", fontSize: 11, fontWeight: 600, height: 24 }}
+          >
+            <RotateCcw size={12} />
+            Reset
+          </button>
+        )}
+
+        <div style={{ width: 8 }} />
+
         <input
           ref={fileInputRef}
           type="file"
@@ -382,69 +684,20 @@ export default function EditorPage() {
           style={{ display: "none" }}
           onChange={handleFileSelect}
         />
-
-        <button
-          className="btn-icon tooltip"
-          data-tooltip="Save"
-          onClick={handleSave}
-          disabled={!displayImage}
-        >
-          <Download size={14} />
-        </button>
-
-        <div style={{ flex: 1 }} />
-
-        {/* Reset — prominent */}
-        {uploadedImage && displayImage !== uploadedImage && (
-          <button
-            onClick={handleReset}
-            style={{
-              background: "var(--wine-bg-strong)",
-              color: "var(--wine-lighter)",
-              border: "1px solid var(--border-wine)",
-              borderRadius: "var(--radius-md)",
-              padding: "5px 14px",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              transition: "all 0.2s ease",
-              fontFamily: "var(--font-sans)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "var(--wine)";
-              e.currentTarget.style.color = "var(--ivory)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "var(--wine-bg-strong)";
-              e.currentTarget.style.color = "var(--wine-lighter)";
-            }}
-          >
-            <RotateCcw size={12} />
-            Reset
-          </button>
-        )}
-
-        {/* Histogram toggle */}
-        <button
-          className="btn-icon"
-          style={{
-            background: showHistogram ? "var(--wine-bg-strong)" : "transparent",
-            color: showHistogram ? "var(--wine-light)" : "var(--text-muted)",
-          }}
-          onClick={() => setShowHistogram(!showHistogram)}
-          title="Toggle Histogram"
-        >
-          <BarChart3 size={14} />
-        </button>
       </header>
 
       {/* ═══ Main ═══ */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         {/* Left: Tools */}
-        <ToolPanel onApply={handleApply} hasImage={!!uploadedImage} loading={loading} />
+          <ToolPanel 
+            onApply={handleApply} 
+            hasImage={!!uploadedImage} 
+            loading={loading} 
+            imageDimensions={imageDimensions}
+            liveFilters={liveFilters}
+            setLiveFilters={setLiveFilters}
+            onOpenCropModal={() => setIsCropModalOpen(true)}
+          />
 
         {/* Center: Single canvas */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
@@ -454,10 +707,9 @@ export default function EditorPage() {
               currentImage={displayImage}
               onImageUpload={handleImageUpload}
               loading={loading}
-              onUndo={handleUndo}
-              onRedo={handleRedo}
-              canUndo={historyState.index > 0}
-              canRedo={historyState.index < historyState.list.length - 1}
+              zoom={zoom}
+              liveFilters={liveFilters}
+              imageDimensions={imageDimensions}
             />
           </div>
 
@@ -661,10 +913,121 @@ export default function EditorPage() {
             </p>
             <MLResult result={mlResult} loading={mlLoading} />
           </div>
+          {/* Export As Section */}
+          <div
+            id="export-panel"
+            className="animate-fade-in"
+            style={{
+              padding: 16,
+              borderTop: "1px solid var(--border-color)",
+              background: "var(--bg-tertiary)",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 10,
+                color: "var(--text-muted)",
+                marginBottom: 12,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                fontWeight: 700,
+              }}
+            >
+              Export As
+            </p>
+
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>Format</span>
+              <div style={{ display: "flex", gap: 4 }}>
+                {["png", "jpg", "webp"].map((fmt) => (
+                  <button
+                    key={fmt}
+                    onClick={() => setExportFormat(fmt)}
+                    style={{
+                      flex: 1,
+                      padding: "6px 0",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid",
+                      textTransform: "uppercase",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      background: exportFormat === fmt ? "var(--wine-bg-strong)" : "var(--bg-elevated)",
+                      color: exportFormat === fmt ? "var(--wine-light)" : "var(--text-muted)",
+                      borderColor: exportFormat === fmt ? "var(--wine-light)" : "var(--border-color)",
+                    }}
+                  >
+                    {fmt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {(exportFormat === "jpg" || exportFormat === "webp") && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Quality</span>
+                  <span style={{ fontSize: 11, color: "var(--wine-light)", fontWeight: 700 }}>{exportQuality}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="100"
+                  value={exportQuality}
+                  onChange={(e) => setExportQuality(parseInt(e.target.value))}
+                  style={{ width: "100%", accentColor: "var(--wine-light)" }}
+                />
+              </div>
+            )}
+
+            <button
+              className="btn-primary"
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              onClick={handleExport}
+              disabled={!displayImage || loading}
+            >
+              <Download size={14} /> Export Image
+            </button>
+          </div>
+
+          <div
+            className="animate-fade-in"
+            style={{
+              padding: 16,
+              marginTop: "auto",
+              borderTop: "1px solid var(--border-color)",
+              background: "rgba(146, 26, 26, 0.05)",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 10,
+                color: "var(--wine-light)",
+                marginBottom: 8,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+            </p>
+          </div>
         </div>
       </div>
 
+      <CropResizeModal
+        isOpen={isCropModalOpen}
+        onClose={() => setIsCropModalOpen(false)}
+        onApply={handleApply}
+        image={displayImage}
+        imageDimensions={imageDimensions}
+      />
+
       {toast && <div className="toast">{toast}</div>}
+
     </div>
   );
 }
