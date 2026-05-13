@@ -2,60 +2,60 @@
 
 :root {
   /* ═══════════════════════════════════════════
-     Red Wine Design System
+     Maroon Red Design System
      Solid colors only — NO gradients
      ═══════════════════════════════════════════ */
 
-  /* Backgrounds — warm charcoal with wine undertone */
-  --bg-primary: #110C0E;
-  --bg-secondary: #1A1215;
-  --bg-tertiary: #221A1D;
-  --bg-elevated: #2C2124;
-  --bg-card: #251B1F;
-  --bg-hover: #2E2226;
-  --bg-active: #352830;
+  /* Backgrounds — warm charcoal with maroon undertone */
+  --bg-primary: #0F090A;
+  --bg-secondary: #171011;
+  --bg-tertiary: #1F1516;
+  --bg-elevated: #281C1D;
+  --bg-card: #221718;
+  --bg-hover: #2D1E1F;
+  --bg-active: #362526;
 
   /* Borders */
-  --border-color: rgba(255, 255, 255, 0.07);
-  --border-hover: rgba(255, 255, 255, 0.12);
-  --border-active: rgba(139, 34, 82, 0.4);
-  --border-wine: rgba(139, 34, 82, 0.25);
+  --border-color: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(255, 255, 255, 0.10);
+  --border-active: rgba(146, 26, 26, 0.45);
+  --border-wine: rgba(146, 26, 26, 0.30);
 
   /* Typography */
-  --text-primary: #F2ECE9;
-  --text-secondary: #A89A95;
-  --text-muted: #6E5F5A;
+  --text-primary: #F5EBEB;
+  --text-secondary: #B09D9D;
+  --text-muted: #756161;
   --text-bright: #FFFFFF;
 
-  /* ─── Wine Palette — SOLID colors, no gradient ─── */
-  --wine: #8B2252;
-  --wine-light: #A63D6B;
-  --wine-lighter: #C06B8D;
-  --wine-dark: #6B1A3F;
-  --wine-bg: rgba(139, 34, 82, 0.10);
-  --wine-bg-strong: rgba(139, 34, 82, 0.18);
+  /* ─── Maroon Palette — SOLID Maroon Red ─── */
+  --wine: #921A1A;
+  --wine-light: #B22222;
+  --wine-lighter: #E64848;
+  --wine-dark: #601010;
+  --wine-bg: rgba(146, 26, 26, 0.12);
+  --wine-bg-strong: rgba(146, 26, 26, 0.22);
 
-  /* Supporting accents — all solid */
+  /* Supporting accents — deep red matched */
   --cream: #D4A574;
   --cream-light: #E8C9A6;
   --gold: #C9A96E;
-  --blush: #C77B8B;
-  --sage: #7A9B7E;
-  --slate: #8A9BAD;
-  --coral: #C96B6B;
+  --blush: #B35D5D;
+  --sage: #6B8E23;
+  --slate: #607D8B;
+  --coral: #CC3333;
   --ivory: #F5F0EB;
 
   /* Functional colors */
-  --success: #7A9B7E;
+  --success: #6B8E23;
   --warning: #C9A96E;
-  --error: #C96B6B;
-  --info: #8A9BAD;
+  --error: #B22222;
+  --info: #607D8B;
 
-  /* Shadows — warm toned */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --shadow-wine: 0 4px 20px rgba(139, 34, 82, 0.15);
+  /* Shadows — red toned */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-wine: 0 4px 20px rgba(146, 26, 26, 0.20);
 
   /* Radii */
   --radius-xs: 4px;
@@ -114,16 +114,16 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(139, 34, 82, 0.25);
+  background: rgba(146, 26, 26, 0.25);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 34, 82, 0.4);
+  background: rgba(146, 26, 26, 0.45);
 }
 
 /* ═══════════════════════════════════════════
-   Buttons — SOLID fills, no gradient
+   Buttons — SOLID fills
    ═══════════════════════════════════════════ */
 .btn-primary {
   background: var(--wine);
@@ -199,7 +199,7 @@ body {
 
 .btn-icon:hover {
   background: var(--wine-bg);
-  color: var(--wine-light);
+  color: var(--wine-lighter);
   border-color: var(--border-wine);
 }
 
@@ -210,7 +210,7 @@ body {
 
 .btn-wine-outline {
   background: transparent;
-  color: var(--wine-light);
+  color: var(--wine-lighter);
   border: 1px solid var(--wine);
   border-radius: var(--radius-md);
   padding: 10px 24px;
@@ -233,7 +233,7 @@ body {
 }
 
 /* ═══════════════════════════════════════════
-   Slider — Wine accent
+   Slider — Maroon accent
    ═══════════════════════════════════════════ */
 input[type="range"] {
   -webkit-appearance: none;
@@ -424,7 +424,7 @@ input[type="range"]::-moz-range-thumb {
    Dropzone
    ═══════════════════════════════════════════ */
 .dropzone {
-  border: 2px dashed rgba(139, 34, 82, 0.3);
+  border: 2px dashed rgba(146, 26, 26, 0.35);
   border-radius: var(--radius-xl);
   padding: 56px 40px;
   text-align: center;
@@ -488,7 +488,7 @@ select option {
 }
 
 /* ═══════════════════════════════════════════
-   Badges — solid fills
+   Badges — solid Maroon
    ═══════════════════════════════════════════ */
 .badge {
   display: inline-flex;
@@ -503,7 +503,7 @@ select option {
 .badge-wine {
   background: var(--wine-bg-strong);
   color: var(--wine-lighter);
-  border: 1px solid rgba(139, 34, 82, 0.3);
+  border: 1px solid rgba(146, 26, 26, 0.35);
 }
 
 .badge-cream {
@@ -513,21 +513,21 @@ select option {
 }
 
 .badge-sage {
-  background: rgba(122, 155, 126, 0.12);
+  background: rgba(107, 142, 35, 0.12);
   color: var(--sage);
-  border: 1px solid rgba(122, 155, 126, 0.25);
+  border: 1px solid rgba(107, 142, 35, 0.25);
 }
 
 .badge-slate {
-  background: rgba(138, 155, 173, 0.12);
+  background: rgba(96, 125, 139, 0.12);
   color: var(--slate);
-  border: 1px solid rgba(138, 155, 173, 0.25);
+  border: 1px solid rgba(96, 125, 139, 0.25);
 }
 
 .badge-coral {
-  background: rgba(201, 107, 107, 0.12);
+  background: rgba(204, 51, 51, 0.12);
   color: var(--coral);
-  border: 1px solid rgba(201, 107, 107, 0.25);
+  border: 1px solid rgba(204, 51, 51, 0.25);
 }
 
 /* ═══════════════════════════════════════════
@@ -571,7 +571,7 @@ select option {
 }
 
 .text-wine {
-  color: var(--wine-light);
+  color: var(--wine-lighter);
 }
 
 .text-cream {
@@ -580,20 +580,6 @@ select option {
 
 .bg-wine-subtle {
   background: var(--wine-bg);
-}
-
-/* Parallax scroll sections */
-.parallax-section {
-  position: relative;
-  overflow: hidden;
-}
-
-.parallax-section::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: 0.03;
-  pointer-events: none;
 }
 
 /* Feature grid item hover */
@@ -636,7 +622,7 @@ select option {
 .stat-value {
   font-size: 36px;
   font-weight: 800;
-  color: var(--wine-light);
+  color: var(--wine-lighter);
   letter-spacing: -0.03em;
   line-height: 1;
   margin-bottom: 6px;
