@@ -31,6 +31,8 @@ class TransformRequest(BaseModel):
     interpolation: str = "linear"
     tx: int = 0             # for translate
     ty: int = 0
+    target_w: Optional[int] = None # for crop-then-resize
+    target_h: Optional[int] = None
 
 
 @router.post("/transform")
@@ -43,7 +45,7 @@ async def transform_endpoint(req: TransformRequest):
     elif req.operation == "flip":
         result = flip_image(img, req.flip_code)
     elif req.operation == "crop":
-        result = crop_image(img, req.x1, req.y1, req.x2, req.y2)
+        result = crop_image(img, req.x1, req.y1, req.x2, req.y2, req.target_w, req.target_h)
     elif req.operation == "resize":
         result = resize_image(img, req.scale, req.width, req.height, req.interpolation)
     elif req.operation == "translate":

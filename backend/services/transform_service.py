@@ -22,7 +22,10 @@ def rotate_image(img: np.ndarray, angle: float) -> np.ndarray:
     h, w = img.shape[:2]
     center = (w // 2, h // 2)
     
-    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+    # CSS rotates clockwise, OpenCV rotates counter-clockwise.
+    # Negate the angle to match frontend behavior.
+    angle_cv = -angle
+    M = cv2.getRotationMatrix2D(center, angle_cv, 1.0)
     
     # Calculate new bounding box size
     cos = np.abs(M[0, 0])
@@ -51,20 +54,11 @@ def flip_image(img: np.ndarray, flip_code: int) -> np.ndarray:
     return cv2.flip(img, flip_code)
 
 
-def crop_image(img: np.ndarray, x1: int, y1: int, x2: int, y2: int) -> np.ndarray:
+def crop_image(img: np.ndarray, x1: int, y1: int, x2: int, y2: int, target_w: int = None, target_h: int = None) -> np.ndarray:
     """
-    Crop image to the specified rectangle.
-    
-    Args:
-        img: Input image (BGR)
-        x1, y1: Top-left corner
-        x2, y2: Bottom-right corner
-        
-    Returns:
-        Cropped image
+    Crop image and optionally resize the result.
     """
     h, w = img.shape[:2]
-    # Clamp coordinates to image bounds
     x1 = max(0, min(x1, w))
     y1 = max(0, min(y1, h))
     x2 = max(0, min(x2, w))
@@ -73,7 +67,12 @@ def crop_image(img: np.ndarray, x1: int, y1: int, x2: int, y2: int) -> np.ndarra
     if x2 <= x1 or y2 <= y1:
         raise ValueError("Invalid crop coordinates")
     
-    return img[y1:y2, x1:x2].copy()
+    cropped = img[y1:y2, x1:x2]
+    
+    if target_w and target_h:
+        return cv2.resize(cropped, (target_w, target_h), interpolation=cv2.INTER_LANCZOS4)
+    
+    return cropped.copy()
 
 
 def resize_image(img: np.ndarray, scale: float = 1.0, width: int = None, height: int = None,
