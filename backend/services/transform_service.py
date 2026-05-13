@@ -40,6 +40,10 @@ def rotate_image(img: np.ndarray, angle: float) -> np.ndarray:
     return cv2.warpAffine(img, M, (new_w, new_h))
 
 
+
+
+
+
 def flip_image(img: np.ndarray, flip_code: int) -> np.ndarray:
     """
     Flip image.

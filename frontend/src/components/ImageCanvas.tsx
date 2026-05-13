@@ -16,6 +16,7 @@ interface ImageCanvasProps {
     hueShift: number;
     saturation: number;
     rotation: number;
+    scale: number;
   };
   imageDimensions?: { width: number; height: number } | null;
 }
@@ -59,43 +60,22 @@ export default function ImageCanvas({
     multiple: false,
   });
 
-  const [filterHold, setFilterHold] = React.useState<any>(null);
-  const prevImage = React.useRef<string | null>(null);
-  const lastValidFilters = React.useRef<any>(null);
-
-  // Capture filters before they are reset by the parent
-  if (liveFilters && (liveFilters.brightness !== 0 || liveFilters.contrast !== 1.0 || liveFilters.rotation !== 0)) {
-    lastValidFilters.current = liveFilters;
-  }
-
-  React.useEffect(() => {
-    // Detect when the image has been updated from the backend (Apply happened)
-    if (prevImage.current && currentImage !== prevImage.current) {
-      // Hold the PREVIOUS filters for a short period to cover the render gap
-      setFilterHold(true);
-      const timer = setTimeout(() => setFilterHold(false), 150); // Increased to 150ms for safety
-      return () => clearTimeout(timer);
-    }
-    prevImage.current = currentImage;
-  }, [currentImage]);
-
   const liveFiltersStyle = React.useMemo(() => {
-    // Determine which filters to use: the current ones, or the 'hold' ones
-    const activeFilters = (filterHold && lastValidFilters.current) ? lastValidFilters.current : liveFilters;
-    
-    if (!activeFilters) return { filter: "none", rotation: 0 };
+    if (!liveFilters) return { filter: "none", rotation: 0 };
     
     const filterStr = `
-      brightness(${100 * (1 + activeFilters.brightness / 100)}%)
-      contrast(${100 * activeFilters.contrast}%)
-      hue-rotate(${activeFilters.hueShift}deg)
-      saturate(${100 * activeFilters.saturation}%)
+      brightness(${100 * (1 + liveFilters.brightness / 100)}%)
+      contrast(${100 * liveFilters.contrast}%)
+      hue-rotate(${liveFilters.hueShift}deg)
+      saturate(${100 * liveFilters.saturation}%)
     `;
     return {
       filter: filterStr,
-      rotation: activeFilters.rotation || 0,
+      rotation: liveFilters.rotation || 0,
+      scale: liveFilters.scale || 1.0,
     };
-  }, [liveFilters, filterHold]);
+  }, [liveFilters]);
+
 
   const beforeStyle = React.useMemo(() => ({
     transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
@@ -111,12 +91,16 @@ export default function ImageCanvas({
 
   const imageStyle = React.useMemo(() => ({
     ...beforeStyle,
-    transform: `${beforeStyle.transform} rotate(${liveFiltersStyle.rotation}deg)`,
+    transform: `${beforeStyle.transform} scale(${liveFiltersStyle.scale}) rotate(${liveFiltersStyle.rotation}deg)`,
     filter: liveFiltersStyle.filter,
     cursor: isDragging ? "grabbing" : "grab",
     // Remove transitions entirely as requested for a snappier, non-floaty feel
     transition: "none",
   }), [beforeStyle, liveFiltersStyle, isDragging]);
+
+
+
+
 
   // ─── Crop Interaction Logic ───
   const handleMouseDown = (e: React.MouseEvent) => {

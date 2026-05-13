@@ -135,12 +135,14 @@ export default function EditorPage() {
   const [exportQuality, setExportQuality] = useState(90);
 
   const [zoom, setZoom] = useState(1);
+  const [resetKey, setResetKey] = useState(0);
 const [liveFilters, setLiveFilters] = useState({
   brightness: 0,
   contrast: 1.0,
   hueShift: 0,
   saturation: 1.0,
   rotation: 0,
+  scale: 1.0,
 });
 
   const [historyState, setHistoryState] = useState<{
@@ -212,8 +214,10 @@ const [liveFilters, setLiveFilters] = useState({
       list: [{ image: base64, log: [] }],
       index: 0
     });
+    setResetKey((k) => k + 1);
 
     try {
+
       const img = new Image();
       img.onload = () => {
         setImageDimensions({ width: img.width, height: img.height });
@@ -230,28 +234,89 @@ const [liveFilters, setLiveFilters] = useState({
 
   const handleReset = () => {
     if (!uploadedImage) return;
+
+    // 1. Stop any pending live operations
+    if (liveTimeout.current) {
+      clearTimeout(liveTimeout.current);
+      liveTimeout.current = null;
+    }
+    // Increment requestId to discard any currently flying backend responses
+    liveRequestId.current++;
+    
+    setLoading(false);
+    setMlLoading(false);
+
+    // 2. Reset images
     setBaseImage(uploadedImage);
     setDisplayImage(uploadedImage);
     setMlResult(null);
     setCompressionInfo(null);
+
+    // 3. Reset filters & UI states
+    setLiveFilters({
+      brightness: 0,
+      contrast: 1.0,
+      hueShift: 0,
+      saturation: 1.0,
+      rotation: 0,
+      scale: 1.0,
+    });
+    setZoom(1);
+    setResetKey((k) => k + 1);
+
 
     setHistoryState({
       list: [{ image: uploadedImage, log: [] }],
       index: 0
     });
 
-    showToast("Reset to original");
+    showToast("Reset to original (All processes stopped)");
 
     // Update histogram
     getHistogram(uploadedImage).then(setHistData).catch(() => { });
   };
 
+
   const handleSave = () => {
     if (!displayImage) return;
-    const link = document.createElement("a");
-    link.href = `data:image/png;base64,${displayImage}`;
-    link.download = "mini-photoshop-output.png";
-    link.click();
+
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const hasFilters =
+        liveFilters.brightness !== 0 ||
+        liveFilters.contrast !== 1.0 ||
+        liveFilters.hueShift !== 0 ||
+        liveFilters.saturation !== 1.0;
+
+      if (hasFilters) {
+        // Bake CSS filter yang sedang aktif ke canvas
+        ctx.filter = `
+          brightness(${100 * (1 + liveFilters.brightness / 100)}%)
+          contrast(${100 * liveFilters.contrast}%)
+          hue-rotate(${liveFilters.hueShift}deg)
+          saturate(${100 * liveFilters.saturation}%)
+        `;
+      }
+
+      ctx.drawImage(img, 0, 0);
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "mini-photoshop-output.png";
+        link.click();
+        URL.revokeObjectURL(url);
+      }, "image/png");
+    };
+    img.src = `data:image/png;base64,${displayImage}`;
     showToast("Quick Save (PNG)");
   };
 
@@ -270,6 +335,20 @@ const [liveFilters, setLiveFilters] = useState({
         return;
       }
 
+      const hasFilters =
+        liveFilters.brightness !== 0 ||
+        liveFilters.contrast !== 1.0 ||
+        liveFilters.hueShift !== 0 ||
+        liveFilters.saturation !== 1.0;
+
+      if (hasFilters) {
+        ctx.filter = `
+          brightness(${100 * (1 + liveFilters.brightness / 100)}%)
+          contrast(${100 * liveFilters.contrast}%)
+          hue-rotate(${liveFilters.hueShift}deg)
+          saturate(${100 * liveFilters.saturation}%)
+        `;
+      }
       ctx.drawImage(img, 0, 0);
 
       let mimeType = "image/png";
@@ -382,6 +461,9 @@ const [liveFilters, setLiveFilters] = useState({
 
       try {
         let result: any;
+        if (module === "compress") {
+          console.log(`[DEBUG] Compression - Module: ${module}, Op: ${operation}, Quality: ${params.quality}`);
+        }
 
         switch (module) {
           case "enhance":
@@ -436,7 +518,7 @@ const [liveFilters, setLiveFilters] = useState({
             img.onload = () => {
               // Now that the new bits are in the browser's memory, we swap everything at once
               setDisplayImage(result.image);
-              setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0 });
+              setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0, scale: 1.0 });
               setImageDimensions({ width: img.width, height: img.height });
               
               const detailStr = formatOpDetails(operation, params);
@@ -482,6 +564,7 @@ const [liveFilters, setLiveFilters] = useState({
         img.src = `data:image/png;base64,${state.image}`;
 
         lastOperationRef.current = null;
+        setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0, scale: 1.0 });
         getHistogram(state.image).then(setHistData).catch(() => { });
         return { ...prev, index: newIdx };
       }
@@ -502,6 +585,7 @@ const [liveFilters, setLiveFilters] = useState({
         img.src = `data:image/png;base64,${state.image}`;
 
         lastOperationRef.current = null;
+        setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0, scale: 1.0 });
         getHistogram(state.image).then(setHistData).catch(() => { });
         return { ...prev, index: newIdx };
       }
@@ -690,6 +774,7 @@ const [liveFilters, setLiveFilters] = useState({
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         {/* Left: Tools */}
           <ToolPanel 
+            key={resetKey}
             onApply={handleApply} 
             hasImage={!!uploadedImage} 
             loading={loading} 

@@ -46,7 +46,9 @@ def histogram_equalization(img: np.ndarray) -> np.ndarray:
 
 def sharpen(img: np.ndarray, intensity: float = 1.0) -> np.ndarray:
     """
-    Sharpen the image using an unsharp masking kernel.
+    Sharpen using Unsharp Masking (USM) — same as Photoshop.
+    USM = original + intensity * (original - gaussian_blur)
+    Does not amplify noise as much as direct convolution.
     
     Args:
         img: Input image (BGR)
@@ -55,21 +57,16 @@ def sharpen(img: np.ndarray, intensity: float = 1.0) -> np.ndarray:
     Returns:
         Sharpened image
     """
-    # Standard sharpening kernel
-    kernel = np.array([
-        [0, -1, 0],
-        [-1, 5, -1],
-        [0, -1, 0]
-    ], dtype=np.float32)
+    # Gaussian blur as the "mask" — sigma 1.5 is better for smoother results
+    blurred = cv2.GaussianBlur(img, (0, 0), sigmaX=1.5)
     
-    # Scale the negative values by intensity
-    kernel_adjusted = np.array([
-        [0, -intensity, 0],
-        [-intensity, 1 + 4 * intensity, -intensity],
-        [0, -intensity, 0]
-    ], dtype=np.float32)
+    # Cap intensity to avoid over-sharpening/grain
+    intensity = min(intensity, 2.0)
     
-    return cv2.filter2D(img, -1, kernel_adjusted)
+    # addWeighted: src1*alpha + src2*beta + gamma
+    # Result = img*(1+intensity) + blurred*(-intensity)
+    return cv2.addWeighted(img, 1.0 + intensity, blurred, -intensity, 0)
+
 
 
 def blur(img: np.ndarray, kernel_size: int = 5) -> np.ndarray:

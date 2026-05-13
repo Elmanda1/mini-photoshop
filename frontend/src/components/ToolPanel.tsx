@@ -28,7 +28,7 @@ interface ToolPanelProps {
   hasImage: boolean;
   loading: boolean;
   imageDimensions: { width: number; height: number } | null;
-  liveFilters: { brightness: number; contrast: number; hueShift: number; saturation: number; rotation: number };
+  liveFilters: { brightness: number; contrast: number; hueShift: number; saturation: number; rotation: number; scale: number };
   setLiveFilters: (filters: any) => void;
   onOpenCropModal: () => void;
 }
@@ -158,6 +158,7 @@ export default function ToolPanel({
   const [angle, setAngle] = useState(0);
   const [tx, setTx] = useState(0);
   const [ty, setTy] = useState(0);
+  const [scale, setScale] = useState(1.0);
 
   const handleRotateChange = (a: number) => {
     setAngle(a);
@@ -166,13 +167,15 @@ export default function ToolPanel({
     }
   };
 
+
+
   const handleRotateApply = () => {
     if (hasImage && !loading) {
       onApply("transform", "rotate", { angle }, false);
       setAngle(0);
-      setLiveFilters({ ...liveFilters, rotation: 0 });
     }
   };
+
 
 
 
@@ -316,7 +319,53 @@ export default function ToolPanel({
           <button className="btn-primary" style={{ width: "100%", marginBottom: 10 }} disabled={disabled || (tx === 0 && ty === 0)}
             onClick={handleTranslateApply}>Apply Translate</button>
 
+          {/* Scaling */}
           <div style={{ height: "1px", background: "var(--border-color)", margin: "10px 0" }} />
+
+          {/* ✅ PERBAIKAN: handleScaleChange + setLiveFilters */}
+          <SliderControl
+            label="Scale"
+            value={scale}
+            min={0.1}
+            max={3.0}
+            step={0.05}
+            onChange={(s) => {
+              setScale(s);
+              if (hasImage && !loading) {
+                setLiveFilters({ ...liveFilters, scale: s });
+              }
+            }}
+            unit="x"
+          />
+
+          {imageDimensions && (
+            <div style={{
+              fontSize: 10, color: "var(--text-muted)",
+              marginBottom: 8, fontFamily: "var(--font-mono)"
+            }}>
+              → {Math.round(imageDimensions.width * scale)} ×{" "}
+              {Math.round(imageDimensions.height * scale)} px
+            </div>
+          )}
+
+          <button
+            className="btn-primary"
+            style={{ width: "100%", marginBottom: 10 }}
+            disabled={disabled || scale === 1.0}
+            onClick={() => {
+              if (hasImage && !loading) {
+                onApply("transform", "resize", { scale }, false);
+                setScale(1.0);
+              }
+            }}
+          >
+            Apply Scale
+          </button>
+
+          <div style={{ height: "1px", background: "var(--border-color)", margin: "10px 0" }} />
+
+
+
 
           <button
             className="btn-secondary"
@@ -424,7 +473,11 @@ export default function ToolPanel({
         <Section title="Compression" icon={<Archive size={15} />}>
           <SliderControl label="JPEG Quality" value={compressQuality} min={1} max={100} step={1} onChange={setCompressQuality} unit="%" />
           <button className="btn-primary" style={{ width: "100%", marginTop: 12 }} disabled={disabled}
-            onClick={() => onApply("compress", "jpeg", { quality: compressQuality }, false)}>Apply Compression</button>
+            onClick={() => {
+              console.log("[DEBUG] ToolPanel sending compression quality:", compressQuality);
+              onApply("compress", "jpeg", { quality: Math.round(compressQuality) }, false);
+              setCompressQuality(80); // ✅ Reset to default after apply
+            }}>Apply Compression</button>
         </Section>
 
         {/* AI Recognition */}

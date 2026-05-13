@@ -27,9 +27,9 @@ def sobel_edge(img: np.ndarray, ksize: int = 3) -> np.ndarray:
     sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=ksize)
     sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=ksize)
     magnitude = cv2.magnitude(sobelx, sobely)
-    # Normalize to 0-255
-    magnitude = np.uint8(np.clip(magnitude, 0, 255))
-    return cv2.cvtColor(magnitude, cv2.COLOR_GRAY2BGR)
+    # Use normalize instead of clip: magnitude can far exceed 255
+    magnitude = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
+    return cv2.cvtColor(np.uint8(magnitude), cv2.COLOR_GRAY2BGR)
 
 
 def prewitt_edge(img: np.ndarray) -> np.ndarray:
@@ -43,8 +43,9 @@ def prewitt_edge(img: np.ndarray) -> np.ndarray:
     prewitt_y = cv2.filter2D(gray, cv2.CV_64F, kernel_y)
     
     magnitude = cv2.magnitude(prewitt_x, prewitt_y)
-    magnitude = np.uint8(np.clip(magnitude, 0, 255))
-    return cv2.cvtColor(magnitude, cv2.COLOR_GRAY2BGR)
+    # Use normalize instead of clip
+    magnitude = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
+    return cv2.cvtColor(np.uint8(magnitude), cv2.COLOR_GRAY2BGR)
 
 
 def robert_edge(img: np.ndarray) -> np.ndarray:
@@ -58,16 +59,19 @@ def robert_edge(img: np.ndarray) -> np.ndarray:
     robert_y = cv2.filter2D(gray, cv2.CV_64F, kernel_y)
     
     magnitude = cv2.magnitude(robert_x, robert_y)
-    magnitude = np.uint8(np.clip(magnitude, 0, 255))
-    return cv2.cvtColor(magnitude, cv2.COLOR_GRAY2BGR)
+    # Use normalize instead of clip
+    magnitude = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
+    return cv2.cvtColor(np.uint8(magnitude), cv2.COLOR_GRAY2BGR)
 
 
 def laplacian_edge(img: np.ndarray) -> np.ndarray:
     """Laplacian edge detection."""
     gray = _to_gray(img)
     lap = cv2.Laplacian(gray, cv2.CV_64F)
-    lap = np.uint8(np.abs(lap))
-    return cv2.cvtColor(lap, cv2.COLOR_GRAY2BGR)
+    # Use normalize instead of direct abs cast: abs can overflow uint8
+    lap_abs = np.abs(lap)
+    lap_norm = cv2.normalize(lap_abs, None, 0, 255, cv2.NORM_MINMAX)
+    return cv2.cvtColor(np.uint8(lap_norm), cv2.COLOR_GRAY2BGR)
 
 
 def log_edge(img: np.ndarray, sigma: float = 1.0) -> np.ndarray:
@@ -80,8 +84,10 @@ def log_edge(img: np.ndarray, sigma: float = 1.0) -> np.ndarray:
     blurred = cv2.GaussianBlur(gray, (ksize, ksize), sigma)
     # Then apply Laplacian
     log = cv2.Laplacian(blurred, cv2.CV_64F)
-    log = np.uint8(np.abs(log))
-    return cv2.cvtColor(log, cv2.COLOR_GRAY2BGR)
+    # Use normalize instead of direct abs cast
+    log_abs = np.abs(log)
+    log_norm = cv2.normalize(log_abs, None, 0, 255, cv2.NORM_MINMAX)
+    return cv2.cvtColor(np.uint8(log_norm), cv2.COLOR_GRAY2BGR)
 
 
 def threshold_binary(img: np.ndarray, thresh: int = 127, max_val: int = 255) -> np.ndarray:
