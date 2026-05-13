@@ -10,7 +10,7 @@ import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import decode_image, encode_image
 from services.enhance_service import (
-    adjust_brightness_contrast, histogram_equalization, sharpen, blur
+    adjust_brightness_contrast, histogram_equalization, sharpen, blur, smart_enhance
 )
 
 router = APIRouter(prefix="/api", tags=["Enhancement"])
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api", tags=["Enhancement"])
 class EnhanceRequest(BaseModel):
     image: str
     operation: str = "brightness_contrast"  # brightness_contrast, histogram_eq, sharpen, blur
-    brightness: int = 0
+    brightness: float = 1.0
     contrast: float = 1.0
     intensity: float = 1.0  # for sharpen
     kernel_size: int = 5    # for blur
@@ -38,6 +38,8 @@ async def enhance_endpoint(req: EnhanceRequest):
         result = sharpen(img, req.intensity)
     elif req.operation == "blur":
         result = blur(img, req.kernel_size)
+    elif req.operation == "smart_enhance":
+        result = smart_enhance(img)
     else:
         return {"error": f"Unknown operation: {req.operation}"}
 

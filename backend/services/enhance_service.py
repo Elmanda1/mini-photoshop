@@ -7,21 +7,19 @@ import cv2
 import numpy as np
 
 
-def adjust_brightness_contrast(img: np.ndarray, brightness: int = 0, contrast: float = 1.0) -> np.ndarray:
+def adjust_brightness_contrast(img: np.ndarray, brightness: float = 1.0, contrast: float = 1.0) -> np.ndarray:
     """
-    Adjust brightness and contrast of an image.
+    Adjust brightness and contrast using CSS-equivalent logic.
+    """
+    img_float = img.astype(np.float32) / 255.0
     
-    Args:
-        img: Input image (BGR)
-        brightness: Brightness offset (-100 to 100)
-        contrast: Contrast multiplier (0.5 to 3.0)
-        
-    Returns:
-        Enhanced image
-    """
-    # alpha = contrast, beta = brightness
-    result = cv2.convertScaleAbs(img, alpha=contrast, beta=brightness)
-    return result
+    # Apply brightness (multiplier)
+    img_float = img_float * brightness
+    
+    # Apply contrast (pivot around 0.5)
+    img_float = (img_float - 0.5) * contrast + 0.5
+    
+    return np.clip(img_float * 255.0, 0, 255).astype(np.uint8)
 
 
 def histogram_equalization(img: np.ndarray) -> np.ndarray:
@@ -91,3 +89,29 @@ def blur(img: np.ndarray, kernel_size: int = 5) -> np.ndarray:
         ksize += 1
     
     return cv2.GaussianBlur(img, (ksize, ksize), 0)
+
+
+def smart_enhance(img: np.ndarray) -> np.ndarray:
+    """
+    Apply a more aggressive combination of localized contrast enhancement (CLAHE),
+    auto-brightness, and sharpening.
+    """
+    # 1. Localized Contrast Enhancement (CLAHE) - Aggressive
+    lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    l, a, b = cv2.split(lab)
+    
+    # Increase clipLimit for more punchy contrast
+    clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(8, 8))
+    cl = clahe.apply(l)
+    
+    # 2. Basic Auto-Brightness (Normalization to use full range)
+    cl = cv2.normalize(cl, None, 0, 255, cv2.NORM_MINMAX)
+    
+    # Merge back
+    limg = cv2.merge((cl, a, b))
+    enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+    
+    # 3. Sharpening - Moderate
+    result = sharpen(enhanced, intensity=0.5)
+    
+    return result
