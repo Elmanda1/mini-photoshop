@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   Sun,
+  Sliders,
   RotateCw,
   FlipHorizontal2,
   FlipVertical2,
@@ -14,12 +15,22 @@ import {
   Brain,
   ChevronDown,
   Sparkles,
+  Crop,
+  ArrowLeft,
+  Check,
+  X,
+  Lock,
+  Unlock
 } from "lucide-react";
 
 interface ToolPanelProps {
-  onApply: (module: string, operation: string, params: Record<string, any>) => void;
+  onApply: (module: string, operation: string, params: Record<string, any>, isPreview?: boolean) => void;
   hasImage: boolean;
   loading: boolean;
+  imageDimensions: { width: number; height: number } | null;
+  liveFilters: { brightness: number; contrast: number; hueShift: number; saturation: number; rotation: number };
+  setLiveFilters: (filters: any) => void;
+  onOpenCropModal: () => void;
 }
 
 const SECTION_COLORS: Record<string, string> = {
@@ -90,10 +101,10 @@ function Section({ title, icon, children, defaultOpen = false }: SectionProps) {
 }
 
 function SliderControl({
-  label, value, min, max, step, onChange, unit,
+  label, value, min, max, step, onChange, onMouseUp, unit,
 }: {
   label: string; value: number; min: number; max: number; step: number;
-  onChange: (v: number) => void; unit?: string;
+  onChange: (v: number) => void; onMouseUp?: () => void; unit?: string;
 }) {
   return (
     <div style={{ marginBottom: 12 }}>
@@ -106,33 +117,80 @@ function SliderControl({
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
+        onMouseUp={onMouseUp}
+        onTouchEnd={onMouseUp}
       />
     </div>
   );
 }
 
-/* ─── Debounce helper ─── */
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
-}
 
-export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps) {
+export default function ToolPanel({
+  onApply, hasImage, loading, imageDimensions, liveFilters, setLiveFilters, onOpenCropModal
+}: ToolPanelProps) {
   // Enhancement
   const [brightness, setBrightness] = useState(0);
   const [contrast, setContrast] = useState(1.0);
+
+  const handleBCChange = (b: number, c: number) => {
+    setBrightness(b);
+    setContrast(c);
+    if (hasImage && !loading) {
+      setLiveFilters({ ...liveFilters, brightness: b, contrast: c });
+    }
+  };
+
+  const handleBCApply = () => {
+    if (hasImage && !loading) {
+      // Convert brightness -100...100 to multiplier 0.0...2.0
+      const bMultiplier = 1 + (brightness / 100);
+      onApply("enhance", "brightness_contrast", { brightness: bMultiplier, contrast }, false);
+      setBrightness(0);
+      setContrast(1.0);
+      // Removed immediate setLiveFilters reset to avoid flicker
+    }
+  };
+
   const [sharpIntensity, setSharpIntensity] = useState(1.0);
   const [blurKernel, setBlurKernel] = useState(5);
 
   // Transform
   const [angle, setAngle] = useState(0);
-  const [scale, setScale] = useState(1.0);
   const [tx, setTx] = useState(0);
   const [ty, setTy] = useState(0);
+
+  const handleRotateChange = (a: number) => {
+    setAngle(a);
+    if (hasImage && !loading) {
+      setLiveFilters({ ...liveFilters, rotation: a });
+    }
+  };
+
+  const handleRotateApply = () => {
+    if (hasImage && !loading) {
+      onApply("transform", "rotate", { angle }, false);
+      setAngle(0);
+      setLiveFilters({ ...liveFilters, rotation: 0 });
+    }
+  };
+
+
+
+  const handleTranslateChange = (x: number, y: number) => {
+    setTx(x);
+    setTy(y);
+    if (hasImage && !loading) {
+      onApply("transform", "translate", { tx: x, ty: y }, true);
+    }
+  };
+
+  const handleTranslateApply = () => {
+    if (hasImage && !loading) {
+      onApply("transform", "translate", { tx, ty }, false);
+      setTx(0);
+      setTy(0);
+    }
+  };
 
   // Filter / noise
   const [filterKernel, setFilterKernel] = useState(5);
@@ -150,6 +208,23 @@ export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps
   const [hueShift, setHueShift] = useState(0);
   const [satScale, setSatScale] = useState(1.0);
 
+  const handleHSChange = (h: number, s: number) => {
+    setHueShift(h);
+    setSatScale(s);
+    if (hasImage && !loading) {
+      setLiveFilters({ ...liveFilters, hueShift: h, saturation: s });
+    }
+  };
+
+  const handleHSApply = () => {
+    if (hasImage && !loading) {
+      onApply("color", "hue_saturation", { hue_shift: hueShift, saturation_scale: satScale }, false);
+      setHueShift(0);
+      setSatScale(1.0);
+      // Removed immediate setLiveFilters reset to avoid flicker
+    }
+  };
+
   // Segment
   const [segMethod, setSegMethod] = useState("threshold");
   const [segThreshold, setSegThreshold] = useState(127);
@@ -159,65 +234,6 @@ export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps
   const [compressQuality, setCompressQuality] = useState(80);
 
   const disabled = !hasImage || loading;
-
-  // ─── LIVE PREVIEW: Debounce slider values, auto-apply on change ───
-  const DEBOUNCE_MS = 400;
-
-  const debouncedBrightness = useDebounce(brightness, DEBOUNCE_MS);
-  const debouncedContrast = useDebounce(contrast, DEBOUNCE_MS);
-
-  const debouncedHueShift = useDebounce(hueShift, DEBOUNCE_MS);
-  const debouncedSatScale = useDebounce(satScale, DEBOUNCE_MS);
-
-  const debouncedCompressQuality = useDebounce(compressQuality, DEBOUNCE_MS);
-
-  const debouncedAngle = useDebounce(angle, DEBOUNCE_MS);
-  const debouncedScale = useDebounce(scale, DEBOUNCE_MS);
-  const debouncedTx = useDebounce(tx, DEBOUNCE_MS);
-  const debouncedTy = useDebounce(ty, DEBOUNCE_MS);
-
-  // Track whether the user has interacted (to avoid auto-apply on mount)
-  const bcInitRef = useRef(true);
-  const colorInitRef = useRef(true);
-  const compressInitRef = useRef(true);
-  const transformInitRef = useRef(true);
-
-  // Auto-apply brightness/contrast
-  useEffect(() => {
-    if (bcInitRef.current) {
-      bcInitRef.current = false;
-      return;
-    }
-    if (!hasImage || loading) return;
-    onApply("enhance", "brightness_contrast", {
-      brightness: debouncedBrightness,
-      contrast: debouncedContrast,
-    });
-  }, [debouncedBrightness, debouncedContrast]);
-
-  // Auto-apply hue/saturation
-  useEffect(() => {
-    if (colorInitRef.current) {
-      colorInitRef.current = false;
-      return;
-    }
-    if (!hasImage || loading) return;
-    onApply("color", "hue_saturation", {
-      hue_shift: debouncedHueShift,
-      saturation_scale: debouncedSatScale,
-    });
-  }, [debouncedHueShift, debouncedSatScale]);
-
-  // Auto-apply compression
-  useEffect(() => {
-    if (compressInitRef.current) {
-      compressInitRef.current = false;
-      return;
-    }
-    if (!hasImage || loading) return;
-    onApply("compress", "jpeg", { quality: debouncedCompressQuality });
-  }, [debouncedCompressQuality]);
-
 
 
   return (
@@ -235,20 +251,47 @@ export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <span>Tools</span>
-        <span className="badge badge-wine" style={{ fontSize: 9 }}>Live</span>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto" }}>
         {/* Enhancement — LIVE sliders + manual buttons */}
-        <Section title="Enhancement" icon={<Sun size={15} />} defaultOpen={true}>
-          <SliderControl label="Brightness" value={brightness} min={-100} max={100} step={1} onChange={setBrightness} />
-          <SliderControl label="Contrast" value={contrast} min={0.5} max={3.0} step={0.1} onChange={setContrast} />
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            <button className="btn-secondary" style={{ flex: 1 }} disabled={disabled}
-              onClick={() => onApply("enhance", "histogram_eq", {})}>Hist EQ</button>
-            <button className="btn-secondary" style={{ flex: 1 }} disabled={disabled}
+        <Section title="Enhancement" icon={<Sliders size={15} />} defaultOpen={true}>
+          <SliderControl label="Brightness" value={brightness} min={-100} max={100} step={1} onChange={(v) => handleBCChange(v, contrast)} />
+          <SliderControl label="Contrast" value={contrast} min={0.1} max={3.0} step={0.1} onChange={(v) => handleBCChange(brightness, v)} unit="x" />
+          <button className="btn-primary" style={{ width: "100%", marginBottom: 12 }} disabled={disabled || (brightness === 0 && contrast === 1.0)}
+            onClick={handleBCApply}>Apply Enhancement</button>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+            <button
+              className="btn-primary"
+              style={{
+                height: 48,
+                background: "linear-gradient(135deg, var(--wine-bg-strong) 0%, #4a0e0e 100%)",
+                border: "1px solid var(--border-wine)",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                fontSize: 11,
+                fontWeight: 700,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 2,
+                padding: "4px 8px",
+                lineHeight: 1.1,
+              }}
+              disabled={disabled}
+              onClick={() => onApply("enhance", "smart_enhance", {})}
+            >
+              <span>Smart Enhance</span>
+            </button>
+            <button className="btn-secondary" style={{ height: 48, fontSize: 11, display: "flex", flexDirection: "column", justifyContent: "center", gap: 2, padding: "4px 8px", lineHeight: 1.1 }}
+              disabled={disabled} onClick={() => onApply("enhance", "histogram_eq", {})}>
+              <span>Hist EQ</span>
+            </button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+            <button className="btn-secondary" style={{ height: 38, fontSize: 11 }} disabled={disabled}
               onClick={() => onApply("enhance", "sharpen", { intensity: sharpIntensity })}>Sharpen</button>
-            <button className="btn-secondary" style={{ flex: 1 }} disabled={disabled}
+            <button className="btn-secondary" style={{ height: 38, fontSize: 11 }} disabled={disabled}
               onClick={() => onApply("enhance", "blur", { kernel_size: blurKernel })}>Blur</button>
           </div>
           <div style={{ marginTop: 10 }}>
@@ -257,26 +300,33 @@ export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps
           </div>
         </Section>
 
-        {/* Transform — manual buttons */}
+        {/* Transform — LIVE sliders + manual buttons */}
         <Section title="Transform" icon={<RotateCw size={15} />}>
-          <SliderControl label="Rotation" value={angle} min={0} max={360} step={1} onChange={setAngle} unit="°" />
-          <button className="btn-primary" style={{ width: "100%", marginBottom: 8 }} disabled={disabled}
-            onClick={() => onApply("transform", "rotate", { angle })}>Rotate</button>
+          <SliderControl label="Rotation" value={angle} min={0} max={360} step={1} onChange={handleRotateChange} unit="°" />
+          <button className="btn-primary" style={{ width: "100%", marginBottom: 8 }} disabled={disabled || angle === 0}
+            onClick={handleRotateApply}>Apply Rotation</button>
           <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
             <button className="btn-secondary" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }} disabled={disabled}
               onClick={() => onApply("transform", "flip", { flip_code: 1 })}><FlipHorizontal2 size={13} /> H-Flip</button>
             <button className="btn-secondary" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }} disabled={disabled}
               onClick={() => onApply("transform", "flip", { flip_code: 0 })}><FlipVertical2 size={13} /> V-Flip</button>
           </div>
-          <SliderControl label="Scale" value={scale} min={0.1} max={5.0} step={0.1} onChange={setScale} unit="x" />
-          <button className="btn-secondary" style={{ width: "100%", marginBottom: 10 }} disabled={disabled}
-            onClick={() => onApply("transform", "resize", { scale })}>Resize</button>
-          <SliderControl label="Translate X" value={tx} min={-500} max={500} step={1} onChange={setTx} unit="px" />
-          <SliderControl label="Translate Y" value={ty} min={-500} max={500} step={1} onChange={setTy} unit="px" />
-          <button className="btn-secondary" style={{ width: "100%" }} disabled={disabled}
-            onClick={() => onApply("transform", "translate", { tx, ty })}>Translate</button>
-        </Section>
+          <SliderControl label="Translate X" value={tx} min={-500} max={500} step={1} onChange={(x) => handleTranslateChange(x, ty)} unit="px" />
+          <SliderControl label="Translate Y" value={ty} min={-500} max={500} step={1} onChange={(y) => handleTranslateChange(tx, y)} unit="px" />
+          <button className="btn-primary" style={{ width: "100%", marginBottom: 10 }} disabled={disabled || (tx === 0 && ty === 0)}
+            onClick={handleTranslateApply}>Apply Translate</button>
 
+          <div style={{ height: "1px", background: "var(--border-color)", margin: "10px 0" }} />
+
+          <button
+            className="btn-secondary"
+            style={{ width: "100%", background: "var(--bg-elevated)", borderColor: "var(--wine-light)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            disabled={disabled}
+            onClick={onOpenCropModal}
+          >
+            <Crop size={14} /> Crop (C)
+          </button>
+        </Section>
         {/* Noise Reduction */}
         <Section title="Noise Reduction" icon={<Waves size={15} />}>
           <SliderControl label="Kernel Size" value={filterKernel} min={3} max={31} step={2} onChange={setFilterKernel} />
@@ -320,7 +370,7 @@ export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps
           <SliderControl label="Iterations" value={morphIterations} min={1} max={10} step={1} onChange={setMorphIterations} />
         </Section>
 
-        {/* Color Processing — LIVE sliders */}
+        {/* Color Processing — ZERO LATENCY sliders */}
         <Section title="Color Processing" icon={<Palette size={15} />}>
           <button className="btn-secondary" style={{ width: "100%", marginBottom: 10 }} disabled={disabled}
             onClick={() => onApply("color", "grayscale", {})}>Grayscale</button>
@@ -345,8 +395,10 @@ export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps
               ))}
             </div>
           </div>
-          <SliderControl label="Hue Shift" value={hueShift} min={-180} max={180} step={1} onChange={setHueShift} unit="°" />
-          <SliderControl label="Saturation" value={satScale} min={0} max={3.0} step={0.1} onChange={setSatScale} unit="x" />
+          <SliderControl label="Hue Shift" value={hueShift} min={-180} max={180} step={1} onChange={(v) => handleHSChange(v, satScale)} unit="°" />
+          <SliderControl label="Saturation" value={satScale} min={0} max={3.0} step={0.1} onChange={(v) => handleHSChange(hueShift, v)} unit="x" />
+          <button className="btn-primary" style={{ width: "100%", marginTop: 12 }} disabled={disabled || (hueShift === 0 && satScale === 1.0)}
+            onClick={handleHSApply}>Apply Colors</button>
         </Section>
 
         {/* Segmentation */}
@@ -368,9 +420,11 @@ export default function ToolPanel({ onApply, hasImage, loading }: ToolPanelProps
             onClick={() => onApply("segment", segMethod, { threshold: segThreshold, threshold1, threshold2, num_regions: numRegions })}>Segment</button>
         </Section>
 
-        {/* Compression — LIVE slider */}
+        {/* Compression */}
         <Section title="Compression" icon={<Archive size={15} />}>
           <SliderControl label="JPEG Quality" value={compressQuality} min={1} max={100} step={1} onChange={setCompressQuality} unit="%" />
+          <button className="btn-primary" style={{ width: "100%", marginTop: 12 }} disabled={disabled}
+            onClick={() => onApply("compress", "jpeg", { quality: compressQuality }, false)}>Apply Compression</button>
         </Section>
 
         {/* AI Recognition */}
