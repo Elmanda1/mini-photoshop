@@ -10,17 +10,18 @@ import numpy as np
 def rotate_image(img: np.ndarray, angle: float) -> np.ndarray:
     """
     Rotate image by a given angle (degrees).
-    The image canvas expands to fit the full rotated image.
+    The image canvas expands to fit the full rotated image so nothing is cropped.
+    Fills rotated corners with transparency.
     
     Args:
-        img: Input image (BGR)
+        img: Input image (BGR or BGRA)
         angle: Rotation angle in degrees (0–360)
         
     Returns:
-        Rotated image
+        Rotated image (BGRA)
     """
     h, w = img.shape[:2]
-    center = (w // 2, h // 2)
+    center = (w / 2.0, h / 2.0)
     
     # CSS rotates clockwise, OpenCV rotates counter-clockwise.
     # Negate the angle to match frontend behavior.
@@ -34,10 +35,28 @@ def rotate_image(img: np.ndarray, angle: float) -> np.ndarray:
     new_h = int(h * cos + w * sin)
     
     # Adjust the rotation matrix for the new center
-    M[0, 2] += (new_w - w) / 2
-    M[1, 2] += (new_h - h) / 2
+    M[0, 2] += (new_w - w) / 2.0
+    M[1, 2] += (new_h - h) / 2.0
     
-    return cv2.warpAffine(img, M, (new_w, new_h))
+    # Ensure image has an alpha channel for transparent borders
+    if img.ndim == 3 and img.shape[2] == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
+    elif img.ndim == 2:
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGRA)
+        
+    # Warp image content
+    warped = cv2.warpAffine(img, M, (new_w, new_h), flags=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
+    
+    # Create an opaque mask for the original image footprint
+    mask = np.ones((h, w), dtype=np.uint8) * 255
+    
+    # Warp the mask to locate original pixels versus transparent background
+    warped_mask = cv2.warpAffine(mask, M, (new_w, new_h), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    
+    # Force the alpha channel to match the warped mask precisely
+    warped[:, :, 3] = warped_mask
+    
+    return warped
 
 
 
@@ -108,15 +127,46 @@ def resize_image(img: np.ndarray, scale: float = 1.0, width: int = None, height:
 def translate_image(img: np.ndarray, tx: int, ty: int) -> np.ndarray:
     """
     Translate (shift) image by tx, ty pixels.
+    Expands the canvas dynamically so that no clipping/cropping of content occurs.
+    Fills empty borders with transparency.
+    Proportionally scales tx and ty if the image is full-resolution (w > 800)
+    to match the frontend's 800px preview translation exactly.
     
     Args:
-        img: Input image (BGR)
+        img: Input image (BGR or BGRA)
         tx: Horizontal translation (pixels)
         ty: Vertical translation (pixels)
         
     Returns:
-        Translated image
+        Translated image (BGRA)
     """
     h, w = img.shape[:2]
-    M = np.float32([[1, 0, tx], [0, 1, ty]])
-    return cv2.warpAffine(img, M, (w, h))
+    
+    # Scale tx and ty proportionally if we are processing the full-resolution image
+    # since the frontend downscales the image to a max-width of 800px during live preview.
+    if w > 800:
+        scale_factor = w / 800.0
+        tx = int(round(tx * scale_factor))
+        ty = int(round(ty * scale_factor))
+    
+    # Ensure image has an alpha channel for transparent borders
+    if img.ndim == 3 and img.shape[2] == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
+        
+    # Calculate new dimensions to prevent clipping/cropping of content
+    new_w = w + abs(tx)
+    new_h = h + abs(ty)
+    
+    # Determine the placement offset inside the new larger canvas
+    # If tx > 0, we shift to the right, so we start at x = tx (padding on the left)
+    # If tx < 0, we shift to the left, so we start at x = 0 (padding on the right)
+    dx = tx if tx > 0 else 0
+    dy = ty if ty > 0 else 0
+    
+    # Create new transparent canvas
+    translated = np.zeros((new_h, new_w, 4), dtype=img.dtype)
+    
+    # Place the original image inside the expanded transparent canvas
+    translated[dy:dy+h, dx:dx+w] = img
+    
+    return translated

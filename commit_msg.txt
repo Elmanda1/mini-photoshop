@@ -1,6 +1,0 @@
-feat(ml): implement OpenCV DNN ResNet-SSD for human face detection and Split-View Preview
-
-- Backend: Replaced heavy TensorFlow/MobileNetV2 dependency with OpenCV's `dnn` module. Added auto-download logic for a pre-trained ResNet-SSD model to exclusively detect human faces. Removed `tensorflow` from `requirements.txt` to resolve `numpy` binary incompatibility.
-- Frontend (ImageCanvas): Refactored the canvas to support a side-by-side "Before/After" Split View when an image is uploaded. 
-- Frontend (UI): Updated `page.tsx` to pass the `originalImage` state to `ImageCanvas`.
-- Documentation: Created root `README.md` to document all 11 modules and project setup.

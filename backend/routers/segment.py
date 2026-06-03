@@ -7,7 +7,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils import decode_image, encode_image
+from utils import decode_image, encode_image, ensure_3channel, merge_alpha
 from services.segment_service import (
     threshold_segmentation, edge_segmentation, region_segmentation
 )
@@ -28,14 +28,16 @@ class SegmentRequest(BaseModel):
 async def segment_endpoint(req: SegmentRequest):
     """Apply image segmentation."""
     img = decode_image(req.image)
+    bgr, alpha = ensure_3channel(img)
 
     if req.method == "threshold":
-        result = threshold_segmentation(img, req.threshold)
+        result = threshold_segmentation(bgr, req.threshold)
     elif req.method == "edge":
-        result = edge_segmentation(img, req.threshold1, req.threshold2)
+        result = edge_segmentation(bgr, req.threshold1, req.threshold2)
     elif req.method == "region":
-        result = region_segmentation(img, req.num_regions)
+        result = region_segmentation(bgr, req.num_regions)
     else:
         return {"error": f"Unknown method: {req.method}"}
 
+    result = merge_alpha(result, alpha)
     return {"image": encode_image(result)}

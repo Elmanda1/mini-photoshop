@@ -19,6 +19,7 @@ interface ImageCanvasProps {
     scale: number;
   };
   imageDimensions?: { width: number; height: number } | null;
+  originalDimensions?: { width: number; height: number } | null;
 }
 
 export default function ImageCanvas({
@@ -29,6 +30,7 @@ export default function ImageCanvas({
   zoom,
   liveFilters,
   imageDimensions,
+  originalDimensions,
 }: ImageCanvasProps) {
   const [pan, setPan] = React.useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = React.useState(false);
@@ -77,6 +79,22 @@ export default function ImageCanvas({
   }, [liveFilters]);
 
 
+  const [containerSize, setContainerSize] = React.useState({ width: 800, height: 600 });
+
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        setContainerSize({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
+
   const beforeStyle = React.useMemo(() => ({
     transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
     transformOrigin: "center" as const,
@@ -89,14 +107,32 @@ export default function ImageCanvas({
     backfaceVisibility: "hidden" as const,
   }), [zoom, pan, isDragging]);
 
+  const scaleMultiplier = React.useMemo(() => {
+    if (!imageDimensions || !originalDimensions) return 1.0;
+    
+    // Viewport dimensions with padding taken into account (padding: 24px -> 48px total)
+    const vpW = Math.max(10, containerSize.width - 48);
+    const vpH = Math.max(10, containerSize.height - 48);
+    
+    // Contain scale factors for before and after images
+    const sBefore = Math.min(vpW / originalDimensions.width, vpH / originalDimensions.height);
+    const sAfter = Math.min(vpW / imageDimensions.width, vpH / imageDimensions.height);
+    
+    if (!isFinite(sBefore) || !isFinite(sAfter) || sBefore <= 0 || sAfter <= 0) {
+      return imageDimensions.width / originalDimensions.width;
+    }
+    
+    return sBefore / sAfter;
+  }, [imageDimensions, originalDimensions, containerSize]);
+
   const imageStyle = React.useMemo(() => ({
     ...beforeStyle,
-    transform: `${beforeStyle.transform} scale(${liveFiltersStyle.scale}) rotate(${liveFiltersStyle.rotation}deg)`,
+    transform: `${beforeStyle.transform} scale(${liveFiltersStyle.scale * scaleMultiplier}) rotate(${liveFiltersStyle.rotation}deg)`,
     filter: liveFiltersStyle.filter,
     cursor: isDragging ? "grabbing" : "grab",
     // Remove transitions entirely as requested for a snappier, non-floaty feel
     transition: "none",
-  }), [beforeStyle, liveFiltersStyle, isDragging]);
+  }), [beforeStyle, liveFiltersStyle, isDragging, scaleMultiplier]);
 
 
 
@@ -214,17 +250,17 @@ export default function ImageCanvas({
           <div style={{ position: "absolute", top: 12, left: 16, zIndex: 10, background: "rgba(0,0,0,0.6)", padding: "4px 10px", borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "var(--text-secondary)" }}>
             BEFORE
           </div>
-          <div className="canvas-checkerboard" style={{ flex: 1, overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center", padding: 24, userSelect: "none" }}>
+          <div ref={containerRef} className="canvas-checkerboard" style={{ flex: 1, overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center", padding: 24, userSelect: "none" }}>
               <img src={`data:image/png;base64,${originalImage || currentImage}`} alt="Original Image" style={beforeStyle} draggable={false} />
           </div>
         </div>
 
         {/* RIGHT: After (Live Updated) */}
-        <div style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column", background: "#000" }}>
+        <div style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
           <div style={{ position: "absolute", top: 12, left: 16, zIndex: 10, background: "var(--wine-bg-strong)", border: "1px solid var(--border-wine)", padding: "4px 10px", borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "var(--wine-light)" }}>
             AFTER
           </div>
-          <div className="canvas-checkerboard" style={{ flex: 1, overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center", padding: 24, userSelect: "none", background: "#000" }}>
+          <div className="canvas-checkerboard" style={{ flex: 1, overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center", padding: 24, userSelect: "none" }}>
             <img 
               src={`data:image/png;base64,${currentImage}`} 
               alt="Edited Image" 

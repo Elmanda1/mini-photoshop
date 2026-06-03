@@ -29,3 +29,7 @@ desktop.ini
 .env
 .env.local
 .env.*.local
+
+# Dataset
+backend/dataset_binary/
+dataset_orl/

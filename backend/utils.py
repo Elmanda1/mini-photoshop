@@ -24,7 +24,7 @@ def decode_image(base64_str: str) -> np.ndarray:
     try:
         img_bytes = base64.b64decode(base64_str)
         nparr = np.frombuffer(img_bytes, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        img = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
         if img is None:
             raise ValueError("Failed to decode image — invalid image data")
         return img
@@ -63,3 +63,27 @@ def bgr_to_rgb(img: np.ndarray) -> np.ndarray:
 def rgb_to_bgr(img: np.ndarray) -> np.ndarray:
     """Convert RGB image to OpenCV BGR."""
     return cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+
+def ensure_3channel(img: np.ndarray) -> tuple[np.ndarray, np.ndarray | None]:
+    """
+    If img has 4 channels (BGRA), returns (BGR, Alpha).
+    Otherwise returns (img, None).
+    """
+    if img.ndim == 3 and img.shape[2] == 4:
+        bgr = img[:, :, :3]
+        alpha = img[:, :, 3]
+        return bgr, alpha
+    return img, None
+
+
+def merge_alpha(bgr: np.ndarray, alpha: np.ndarray | None) -> np.ndarray:
+    """
+    If alpha is provided, merges it back with BGR to return BGRA.
+    Otherwise returns BGR.
+    """
+    if alpha is not None:
+        if bgr.shape[:2] != alpha.shape[:2]:
+            alpha = cv2.resize(alpha, (bgr.shape[1], bgr.shape[0]), interpolation=cv2.INTER_NEAREST)
+        return cv2.merge([bgr[:, :, 0], bgr[:, :, 1], bgr[:, :, 2], alpha])
+    return bgr

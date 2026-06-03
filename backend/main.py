@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routers import image, enhance, transform, filter, edge, color, segment, compress, ml
 from services.histogram_service import calculate_histogram
-from utils import decode_image
+from utils import decode_image, ensure_3channel
 from pydantic import BaseModel
 
 app = FastAPI(
@@ -47,7 +47,8 @@ class HistogramRequest(BaseModel):
 async def histogram_endpoint(req: HistogramRequest):
     """Calculate histogram data for the image."""
     img = decode_image(req.image)
-    histogram_data = calculate_histogram(img)
+    bgr, _ = ensure_3channel(img)
+    histogram_data = calculate_histogram(bgr)
     return histogram_data
 
 

@@ -23,8 +23,225 @@ import {
   Unlock
 } from "lucide-react";
 
+interface ColorWheelProps {
+  color: string;
+  onChange: (hex: string) => void;
+  disabled?: boolean;
+}
+
+function ColorWheel({ color, onChange, disabled }: ColorWheelProps) {
+  const wheelRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [localHex, setLocalHex] = useState(color);
+
+  // Sync color changes from external (e.g. mouse drag on wheel)
+  useEffect(() => {
+    setLocalHex(color.toUpperCase());
+  }, [color]);
+
+  const hexToRgb = (hex: string) => {
+    const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+    const fullHex = hex.replace(shorthandRegex, (_, r, g, b) => r + r + g + g + b + b);
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(fullHex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 255, g: 0, b: 0 };
+  };
+
+  const rgbToHsv = (r: number, g: number, b: number) => {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0;
+    const v = max;
+    const d = max - min;
+    s = max === 0 ? 0 : d / max;
+    if (max !== min) {
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+    return { h: h * 360, s, v };
+  };
+
+  const hsvToRgb = (h: number, s: number, v: number) => {
+    let r = 0, g = 0, b = 0;
+    const i = Math.floor(h / 60);
+    const f = h / 60 - i;
+    const p = v * (1 - s);
+    const q = v * (1 - f * s);
+    const t = v * (1 - (1 - f) * s);
+    switch (i % 6) {
+      case 0: r = v; g = t; b = p; break;
+      case 1: r = q; g = v; b = p; break;
+      case 2: r = p; g = v; b = t; break;
+      case 3: r = p; g = q; b = v; break;
+      case 4: r = t; g = p; b = v; break;
+      case 5: r = v; g = p; b = q; break;
+    }
+    return {
+      r: Math.round(r * 255),
+      g: Math.round(g * 255),
+      b: Math.round(b * 255)
+    };
+  };
+
+  const rgbToHex = (r: number, g: number, b: number) => {
+    const toHex = (c: number) => {
+      const hex = c.toString(16);
+      return hex.length === 1 ? "0" + hex : hex;
+    };
+    return "#" + toHex(r) + toHex(g) + toHex(b);
+  };
+
+  const rgb = hexToRgb(color);
+  const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
+  
+  const angleRad = (hsv.h - 90) * (Math.PI / 180);
+  const radiusPercent = hsv.s * 50;
+
+  const handleX = 50 + Math.cos(angleRad) * radiusPercent;
+  const handleY = 50 + Math.sin(angleRad) * radiusPercent;
+
+  const handleInteract = (clientX: number, clientY: number) => {
+    if (!wheelRef.current || disabled) return;
+    const rect = wheelRef.current.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const dx = clientX - rect.left - cx;
+    const dy = clientY - rect.top - cy;
+
+    let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    let h = (angle + 90 + 360) % 360;
+
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const maxR = rect.width / 2;
+    const s = Math.min(dist / maxR, 1);
+
+    const rgbVal = hsvToRgb(h, s, 1.0);
+    const newHex = rgbToHex(rgbVal.r, rgbVal.g, rgbVal.b);
+    onChange(newHex);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    handleInteract(e.clientX, e.clientY);
+  };
+
+  const handleTextChange = (val: string) => {
+    const upperVal = val.toUpperCase();
+    setLocalHex(upperVal);
+
+    const formatted = upperVal.startsWith("#") ? upperVal : "#" + upperVal;
+    if (/^#[0-9A-F]{6}$/.test(formatted) || /^#[0-9A-F]{3}$/.test(formatted)) {
+      onChange(formatted);
+    }
+  };
+
+  const handleBlur = () => {
+    setLocalHex(color.toUpperCase());
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging) {
+        handleInteract(e.clientX, e.clientY);
+      }
+    };
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+      <div
+        ref={wheelRef}
+        onMouseDown={handleMouseDown}
+        style={{
+          width: 120,
+          height: 120,
+          borderRadius: "50%",
+          position: "relative",
+          cursor: disabled ? "not-allowed" : "crosshair",
+          background: "radial-gradient(circle, #ffffff 0%, transparent 100%), conic-gradient(from 90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)",
+          boxShadow: "inset 0 2px 6px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3)",
+          border: "1px solid var(--border-color)",
+          touchAction: "none",
+          opacity: disabled ? 0.5 : 1,
+          transition: "opacity 0.2s ease",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            width: 12,
+            height: 12,
+            borderRadius: "50%",
+            backgroundColor: color,
+            border: "2px solid #ffffff",
+            boxShadow: "0 0 4px rgba(0,0,0,0.8)",
+            left: `${handleX}%`,
+            top: `${handleY}%`,
+            transform: "translate(-50%, -50%)",
+            pointerEvents: "none",
+          }}
+        />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div
+          style={{
+            width: 16,
+            height: 16,
+            borderRadius: "50%",
+            backgroundColor: color,
+            border: "1px solid var(--border-color)",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
+          }}
+        />
+        <input
+          type="text"
+          value={localHex}
+          onChange={(e) => handleTextChange(e.target.value)}
+          onBlur={handleBlur}
+          disabled={disabled}
+          placeholder="#FFFFFF"
+          style={{
+            fontSize: 10,
+            fontFamily: "var(--font-mono)",
+            color: "var(--text-secondary)",
+            backgroundColor: "var(--bg-elevated)",
+            border: "1px solid var(--border-color)",
+            borderRadius: 4,
+            padding: "2px 6px",
+            width: 75,
+            textAlign: "center",
+            outline: "none",
+            transition: "border-color 0.2s ease",
+          }}
+          onFocus={(e) => (e.target.style.borderColor = "var(--wine-bg-strong)")}
+        />
+      </div>
+    </div>
+  );
+}
+
 interface ToolPanelProps {
   onApply: (module: string, operation: string, params: Record<string, any>, isPreview?: boolean) => void;
+  onCancelPreview: () => void;
   hasImage: boolean;
   loading: boolean;
   imageDimensions: { width: number; height: number } | null;
@@ -126,7 +343,7 @@ function SliderControl({
 
 
 export default function ToolPanel({
-  onApply, hasImage, loading, imageDimensions, liveFilters, setLiveFilters, onOpenCropModal
+  onApply, onCancelPreview, hasImage, loading, imageDimensions, liveFilters, setLiveFilters, onOpenCropModal
 }: ToolPanelProps) {
   // Enhancement
   const [brightness, setBrightness] = useState(0);
@@ -206,26 +423,65 @@ export default function ToolPanel({
   const [edgeKernel, setEdgeKernel] = useState(5);
   const [morphIterations, setMorphIterations] = useState(1);
 
-  // Color
-  const [colorChannel, setColorChannel] = useState("r");
+  // Color Processing States & Effects
+  const [colorMode, setColorMode] = useState<"normal" | "grayscale" | "channel" | "tint" | "huesat">("normal");
+  const [colorChannel, setColorChannel] = useState<"r" | "g" | "b">("r");
   const [hueShift, setHueShift] = useState(0);
   const [satScale, setSatScale] = useState(1.0);
+  const [tintColor, setTintColor] = useState("#8a2be2");
+  const [tintIntensity, setTintIntensity] = useState(30);
+  const [hasUnappliedColorChanges, setHasUnappliedColorChanges] = useState(false);
 
-  const handleHSChange = (h: number, s: number) => {
-    setHueShift(h);
-    setSatScale(s);
-    if (hasImage && !loading) {
-      setLiveFilters({ ...liveFilters, hueShift: h, saturation: s });
+  // Trigger backend preview automatically when active states change
+  useEffect(() => {
+    if (!hasImage || loading) return;
+
+    if (colorMode === "normal") {
+      if (hasUnappliedColorChanges) {
+        onCancelPreview();
+        setHasUnappliedColorChanges(false);
+      }
+      return;
     }
+
+    setHasUnappliedColorChanges(true);
+
+    if (colorMode === "grayscale") {
+      onApply("color", "grayscale", {}, true);
+    } else if (colorMode === "channel") {
+      onApply("color", "channel_split", { channel: colorChannel }, true);
+    } else if (colorMode === "huesat") {
+      onApply("color", "hue_saturation", { hue_shift: hueShift, saturation_scale: satScale }, true);
+    } else if (colorMode === "tint") {
+      onApply("color", "colorize", { hex_color: tintColor, intensity: tintIntensity / 100 }, true);
+    }
+  }, [colorMode, colorChannel, hueShift, satScale, tintColor, tintIntensity]);
+
+  const handleColorApply = () => {
+    if (!hasImage || loading) return;
+
+    if (colorMode === "grayscale") {
+      onApply("color", "grayscale", {}, false);
+    } else if (colorMode === "channel") {
+      onApply("color", "channel_split", { channel: colorChannel }, false);
+    } else if (colorMode === "huesat") {
+      onApply("color", "hue_saturation", { hue_shift: hueShift, saturation_scale: satScale }, false);
+    } else if (colorMode === "tint") {
+      onApply("color", "colorize", { hex_color: tintColor, intensity: tintIntensity / 100 }, false);
+    }
+
+    // Commit state
+    setHasUnappliedColorChanges(false);
+    setColorMode("normal");
   };
 
-  const handleHSApply = () => {
-    if (hasImage && !loading) {
-      onApply("color", "hue_saturation", { hue_shift: hueShift, saturation_scale: satScale }, false);
-      setHueShift(0);
-      setSatScale(1.0);
-      // Removed immediate setLiveFilters reset to avoid flicker
-    }
+  const handleColorCancel = () => {
+    onCancelPreview();
+    setColorMode("normal");
+    setHueShift(0);
+    setSatScale(1.0);
+    setTintIntensity(30);
+    setHasUnappliedColorChanges(false);
   };
 
   // Segment
@@ -419,35 +675,167 @@ export default function ToolPanel({
           <SliderControl label="Iterations" value={morphIterations} min={1} max={10} step={1} onChange={setMorphIterations} />
         </Section>
 
-        {/* Color Processing — ZERO LATENCY sliders */}
+        {/* Color Processing — PREVIEW & COMMIT SYSTEM */}
         <Section title="Color Processing" icon={<Palette size={15} />}>
-          <button className="btn-secondary" style={{ width: "100%", marginBottom: 10 }} disabled={disabled}
-            onClick={() => onApply("color", "grayscale", {})}>Grayscale</button>
-          <div style={{ marginBottom: 10 }}>
-            <span style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 5, fontWeight: 500 }}>Channel</span>
-            <div style={{ display: "flex", gap: 4 }}>
-              {[
-                { ch: "r", color: "#C96B6B", label: "R" },
-                { ch: "g", color: "#7A9B7E", label: "G" },
-                { ch: "b", color: "#8A9BAD", label: "B" },
-              ].map(({ ch, color, label }) => (
-                <button key={ch} disabled={disabled} className="btn-secondary"
-                  style={{
-                    flex: 1, fontWeight: 700,
-                    color: colorChannel === ch ? color : "var(--text-secondary)",
-                    borderColor: colorChannel === ch ? `${color}60` : "var(--border-color)",
-                    background: colorChannel === ch ? `${color}12` : "var(--bg-elevated)",
-                  }}
-                  onClick={() => { setColorChannel(ch); onApply("color", "channel_split", { channel: ch }); }}>
-                  {label}
-                </button>
-              ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* Mode selection buttons */}
+            <div>
+              <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 6 }}>
+                Adjustment Mode
+              </span>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                {[
+                  { mode: "grayscale", label: "Grayscale" },
+                  { mode: "channel", label: "Channel Split" },
+                  { mode: "tint", label: "Color Tint" },
+                  { mode: "huesat", label: "Hue / Sat" },
+                ].map((item) => (
+                  <button
+                    key={item.mode}
+                    disabled={disabled}
+                    onClick={() => setColorMode(item.mode as any)}
+                    className={colorMode === item.mode ? "btn-primary" : "btn-secondary"}
+                    style={{
+                      height: 28,
+                      fontSize: 10,
+                      fontWeight: 600,
+                      borderRadius: 6,
+                      padding: 0,
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Mode Controls */}
+            {colorMode === "grayscale" && (
+              <div style={{ padding: "10px 12px", background: "var(--bg-elevated)", border: "1px dashed var(--border-color)", borderRadius: 8, textAlign: "center" }}>
+                <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                  Previewing Grayscale. Click Apply to commit.
+                </span>
+              </div>
+            )}
+
+            {colorMode === "channel" && (
+              <div>
+                <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 6 }}>
+                  Select B&W Channel
+                </span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {[
+                    { ch: "r", color: "#C96B6B", label: "Red" },
+                    { ch: "g", color: "#7A9B7E", label: "Green" },
+                    { ch: "b", color: "#8A9BAD", label: "Blue" },
+                  ].map(({ ch, color, label }) => (
+                    <button
+                      key={ch}
+                      disabled={disabled}
+                      className="btn-secondary"
+                      style={{
+                        flex: 1,
+                        height: 32,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: colorChannel === ch ? color : "var(--text-secondary)",
+                        borderColor: colorChannel === ch ? `${color}70` : "var(--border-color)",
+                        background: colorChannel === ch ? `${color}15` : "var(--bg-elevated)",
+                      }}
+                      onClick={() => setColorChannel(ch as any)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {colorMode === "tint" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 700, textTransform: "uppercase", display: "block", textAlign: "center", marginBottom: -4 }}>
+                  Drag to Pick Color
+                </span>
+                
+                {/* Circular color picker wheel */}
+                <ColorWheel color={tintColor} onChange={setTintColor} disabled={disabled} />
+
+                <SliderControl
+                  label="Tint Intensity"
+                  value={tintIntensity}
+                  min={1}
+                  max={100}
+                  step={1}
+                  onChange={setTintIntensity}
+                  unit="%"
+                />
+              </div>
+            )}
+
+            {colorMode === "huesat" && (
+              <div>
+                <SliderControl
+                  label="Hue Shift"
+                  value={hueShift}
+                  min={-180}
+                  max={180}
+                  step={1}
+                  onChange={setHueShift}
+                  unit="°"
+                />
+                <SliderControl
+                  label="Saturation"
+                  value={satScale}
+                  min={0.0}
+                  max={3.0}
+                  step={0.1}
+                  onChange={setSatScale}
+                  unit="x"
+                />
+              </div>
+            )}
+
+            {/* Commit / Cancel controls */}
+            {hasUnappliedColorChanges && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
+                <button
+                  className="btn-primary"
+                  style={{
+                    width: "100%",
+                    height: 36,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    backgroundColor: "var(--wine-bg-strong)",
+                    borderColor: "var(--border-wine)",
+                    color: "var(--wine-light)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6
+                  }}
+                  onClick={handleColorApply}
+                >
+                  <Check size={14} /> Apply Color Processing
+                </button>
+                <button
+                  className="btn-secondary"
+                  style={{
+                    width: "100%",
+                    height: 34,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6
+                  }}
+                  onClick={handleColorCancel}
+                >
+                  <X size={14} /> Cancel Preview
+                </button>
+              </div>
+            )}
           </div>
-          <SliderControl label="Hue Shift" value={hueShift} min={-180} max={180} step={1} onChange={(v) => handleHSChange(v, satScale)} unit="°" />
-          <SliderControl label="Saturation" value={satScale} min={0} max={3.0} step={0.1} onChange={(v) => handleHSChange(hueShift, v)} unit="x" />
-          <button className="btn-primary" style={{ width: "100%", marginTop: 12 }} disabled={disabled || (hueShift === 0 && satScale === 1.0)}
-            onClick={handleHSApply}>Apply Colors</button>
         </Section>
 
         {/* Segmentation */}

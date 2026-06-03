@@ -7,7 +7,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils import decode_image, encode_image
+from utils import decode_image, encode_image, ensure_3channel, merge_alpha
 from services.edge_service import (
     canny_edge, sobel_edge, prewitt_edge, robert_edge,
     laplacian_edge, log_edge, threshold_binary, erosion, dilation
@@ -31,26 +31,28 @@ class EdgeRequest(BaseModel):
 async def edge_endpoint(req: EdgeRequest):
     """Apply edge detection or morphological operations."""
     img = decode_image(req.image)
+    bgr, alpha = ensure_3channel(img)
 
     if req.operation == "canny":
-        result = canny_edge(img, req.threshold1, req.threshold2)
+        result = canny_edge(bgr, req.threshold1, req.threshold2)
     elif req.operation == "sobel":
-        result = sobel_edge(img, req.kernel_size)
+        result = sobel_edge(bgr, req.kernel_size)
     elif req.operation == "prewitt":
-        result = prewitt_edge(img)
+        result = prewitt_edge(bgr)
     elif req.operation == "robert":
-        result = robert_edge(img)
+        result = robert_edge(bgr)
     elif req.operation == "laplacian":
-        result = laplacian_edge(img)
+        result = laplacian_edge(bgr)
     elif req.operation == "log":
-        result = log_edge(img, req.sigma)
+        result = log_edge(bgr, req.sigma)
     elif req.operation == "threshold":
-        result = threshold_binary(img, req.thresh_value)
+        result = threshold_binary(bgr, req.thresh_value)
     elif req.operation == "erosion":
-        result = erosion(img, req.kernel_size, req.iterations)
+        result = erosion(bgr, req.kernel_size, req.iterations)
     elif req.operation == "dilation":
-        result = dilation(img, req.kernel_size, req.iterations)
+        result = dilation(bgr, req.kernel_size, req.iterations)
     else:
         return {"error": f"Unknown operation: {req.operation}"}
 
+    result = merge_alpha(result, alpha)
     return {"image": encode_image(result)}

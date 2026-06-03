@@ -47,12 +47,12 @@ const CropResizeModal: React.FC<CropResizeModalProps> = ({
     onClose();
   };
 
-  const getAspectValue = (label: string) => {
+  const getAspectValue = (label: string, currentOrientation: "landscape" | "portrait" = orientation) => {
     if (label === "Free") return NaN;
     if (label === "1:1") return 1;
     
     const [w, h] = label.split(":").map(Number);
-    return orientation === "landscape" ? w / h : h / w;
+    return currentOrientation === "landscape" ? w / h : h / w;
   };
 
   const handleRatioClick = (label: string) => {
@@ -68,15 +68,15 @@ const CropResizeModal: React.FC<CropResizeModalProps> = ({
     const cropper = cropperRef.current?.cropper;
     if (cropper && activeRatio !== "Free" && activeRatio !== "1:1") {
       // Update existing aspect ratio with new orientation
-      cropper.setAspectRatio(getAspectValue(activeRatio));
+      cropper.setAspectRatio(getAspectValue(activeRatio, newOrientation));
     }
   };
 
   const aspectRatios = [
     { label: "Free", icon: <Maximize2 size={14} /> },
     { label: "1:1", icon: <Square size={14} /> },
-    { label: "4:3", icon: <Layout size={14} /> },
-    { label: "16:9", icon: <Layout size={14} style={{ transform: orientation === "landscape" ? "rotate(90deg)" : "none" }} /> },
+    { label: "4:3", icon: <Layout size={14} style={{ transform: orientation === "portrait" ? "rotate(90deg)" : "none", transition: "transform 0.2s" }} /> },
+    { label: "16:9", icon: <Layout size={14} style={{ transform: orientation === "portrait" ? "rotate(90deg)" : "none", transition: "transform 0.2s" }} /> },
   ];
 
   return (

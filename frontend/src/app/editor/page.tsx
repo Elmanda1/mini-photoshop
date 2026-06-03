@@ -130,6 +130,7 @@ export default function EditorPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [originalDimensions, setOriginalDimensions] = useState<{ width: number; height: number } | null>(null);
 
   const [exportFormat, setExportFormat] = useState("png");
   const [exportQuality, setExportQuality] = useState(90);
@@ -182,7 +183,7 @@ const [liveFilters, setLiveFilters] = useState({
           return;
         }
         ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.6);
+        const dataUrl = canvas.toDataURL("image/png");
         const previewBase64 = dataUrl.split(",")[1];
         previewImageRef.current = { base: base64, preview: previewBase64 };
         resolve(previewBase64);
@@ -221,6 +222,7 @@ const [liveFilters, setLiveFilters] = useState({
       const img = new Image();
       img.onload = () => {
         setImageDimensions({ width: img.width, height: img.height });
+        setOriginalDimensions({ width: img.width, height: img.height });
       };
       img.src = `data:image/png;base64,${base64}`;
 
@@ -263,6 +265,9 @@ const [liveFilters, setLiveFilters] = useState({
     });
     setZoom(1);
     setResetKey((k) => k + 1);
+    if (originalDimensions) {
+      setImageDimensions(originalDimensions);
+    }
 
 
     setHistoryState({
@@ -275,6 +280,30 @@ const [liveFilters, setLiveFilters] = useState({
     // Update histogram
     getHistogram(uploadedImage).then(setHistData).catch(() => { });
   };
+
+  const handleCancelPreview = useCallback(() => {
+    if (liveTimeout.current) {
+      clearTimeout(liveTimeout.current);
+      liveTimeout.current = null;
+    }
+    liveRequestId.current++;
+    setLoading(false);
+    
+    if (baseImage) {
+      setDisplayImage(baseImage);
+      setLiveFilters({
+        brightness: 0,
+        contrast: 1.0,
+        hueShift: 0,
+        saturation: 1.0,
+        rotation: 0,
+        scale: 1.0,
+      });
+      lastOperationRef.current = null;
+      showToast("Preview discarded");
+      getHistogram(baseImage).then(setHistData).catch(() => { });
+    }
+  }, [baseImage]);
 
 
   const handleSave = () => {
@@ -449,6 +478,10 @@ const [liveFilters, setLiveFilters] = useState({
 
       if (!rawSourceImage) return;
 
+      // Calculate previewScale to dynamically scale back the returned preview image's dimensions
+      const baseWidth = imageDimensions?.width || 800;
+      const previewScale = baseWidth > 800 ? (800 / baseWidth) : 1.0;
+
       // setLoading(true); // Removed to prevent canvas flicker during apply
 
       const sourceImage = isLive ? await getPreviewImage(rawSourceImage) : rawSourceImage;
@@ -512,29 +545,40 @@ const [liveFilters, setLiveFilters] = useState({
         if (isLive && requestId !== liveRequestId.current) return;
 
         if (result?.image) {
-          if (!isLive) {
-            // ZERO FLICKER: Keep the old state visible (including filters) until the new image is physically ready
-            const img = new Image();
-            img.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            // Discard stale live results
+            if (isLive && requestId !== liveRequestId.current) return;
+
+            if (!isLive) {
               // Now that the new bits are in the browser's memory, we swap everything at once
               setDisplayImage(result.image);
               setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0, scale: 1.0 });
               setImageDimensions({ width: img.width, height: img.height });
+              if (operation === "crop" || operation === "resize") {
+                setOriginalDimensions({ width: img.width, height: img.height });
+              }
               
               const detailStr = formatOpDetails(operation, params);
               pushHistory(result.image, detailStr);
               showToast(`Applied: ${operation}`);
               setLoading(false);
-            };
-            img.onerror = () => {
+            } else {
+              setDisplayImage(result.image);
+              setImageDimensions({
+                width: Math.round(img.width / previewScale),
+                height: Math.round(img.height / previewScale),
+              });
+            }
+          };
+          img.onerror = () => {
+            if (!isLive) {
               setLoading(false);
               showToast("Failed to render result");
-            };
-            img.src = `data:image/png;base64,${result.image}`;
-            return;
-          } else {
-            setDisplayImage(result.image);
-          }
+            }
+          };
+          img.src = `data:image/png;base64,${result.image}`;
+          return;
         } else if (result?.error) {
           showToast(`Error: ${result.error}`);
         }
@@ -776,6 +820,7 @@ const [liveFilters, setLiveFilters] = useState({
           <ToolPanel 
             key={resetKey}
             onApply={handleApply} 
+            onCancelPreview={handleCancelPreview}
             hasImage={!!uploadedImage} 
             loading={loading} 
             imageDimensions={imageDimensions}
@@ -795,6 +840,7 @@ const [liveFilters, setLiveFilters] = useState({
               zoom={zoom}
               liveFilters={liveFilters}
               imageDimensions={imageDimensions}
+              originalDimensions={originalDimensions}
             />
           </div>
 
