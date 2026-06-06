@@ -24,68 +24,68 @@ import {
 const MODULES = [
   {
     icon: <Upload size={22} />,
-    title: "Image Management",
-    desc: "Load, save, and export images in JPG, PNG, and BMP formats with drag & drop.",
+    title: "Manajemen Gambar",
+    desc: "Muat, simpan, dan ekspor gambar dalam format JPG, PNG, dan BMP dengan drag & drop.",
     color: "var(--cream)",
   },
   {
     icon: <Sun size={22} />,
-    title: "Enhancement",
-    desc: "Adjust brightness, contrast, apply histogram equalization, sharpen, and blur.",
+    title: "Peningkatan Citra",
+    desc: "Sesuaikan kecerahan, kontras, perataan histogram, penajaman, dan pengaburan.",
     color: "var(--gold)",
   },
   {
     icon: <RotateCw size={22} />,
-    title: "Geometric Transform",
-    desc: "Rotate, flip, crop, resize, and translate images with affine transformations.",
+    title: "Transformasi Geometris",
+    desc: "Putar, balik, potong, ubah ukuran, dan translasi gambar dengan transformasi afin.",
     color: "var(--slate)",
   },
   {
     icon: <Waves size={22} />,
-    title: "Noise Reduction",
-    desc: "Remove noise with Gaussian blur, median filter, and salt & pepper handling.",
+    title: "Reduksi Derau",
+    desc: "Hapus noise dengan Gaussian blur, filter median, dan penanganan salt & pepper.",
     color: "var(--sage)",
   },
   {
     icon: <ScanLine size={22} />,
-    title: "Edge Detection",
-    desc: "Six methods: Canny, Sobel, Prewitt, Robert, Laplacian, LoG + morphology.",
+    title: "Deteksi Tepi",
+    desc: "Enam metode: Canny, Sobel, Prewitt, Robert, Laplacian, LoG + morfologi.",
     color: "var(--coral)",
   },
   {
     icon: <Palette size={22} />,
-    title: "Color Processing",
-    desc: "Convert to grayscale, split RGB channels, adjust hue and saturation.",
+    title: "Pengolahan Warna",
+    desc: "Konversi ke grayscale, pisah saluran RGB, sesuaikan hue dan saturasi.",
     color: "var(--wine-lighter)",
   },
   {
     icon: <Layers size={22} />,
-    title: "Segmentation",
-    desc: "Threshold-based, edge-based, and K-means region segmentation.",
+    title: "Segmentasi",
+    desc: "Segmentasi wilayah berbasis ambang batas (threshold), tepi, dan K-means.",
     color: "var(--blush)",
   },
   {
     icon: <Archive size={22} />,
-    title: "Compression",
-    desc: "JPEG quality simulation with real-time file size comparison.",
+    title: "Kompresi",
+    desc: "Simulasi kualitas JPEG dengan perbandingan ukuran file secara real-time.",
     color: "var(--cream)",
   },
   {
     icon: <BarChart3 size={22} />,
-    title: "Histogram Analysis",
-    desc: "Real-time histogram visualization with before/after comparison.",
+    title: "Analisis Histogram",
+    desc: "Visualisasi histogram real-time dengan perbandingan sebelum/sesudah.",
     color: "var(--slate)",
   },
   {
     icon: <Eye size={22} />,
-    title: "User Interface",
-    desc: "Professional dark UI with before/after panel, sliders, and toolbars.",
+    title: "Antarmuka Pengguna",
+    desc: "UI gelap profesional dengan panel pembanding, slider, dan toolbar.",
     color: "var(--gold)",
   },
   {
     icon: <Brain size={22} />,
-    title: "AI Recognition",
-    desc: "CNN-based object classification using MobileNetV2 with confidence scores.",
+    title: "Pengenalan AI",
+    desc: "Klasifikasi objek berbasis CNN menggunakan MobileNetV2 dengan skor kepercayaan.",
     color: "var(--wine-light)",
   },
 ];
@@ -93,23 +93,40 @@ const MODULES = [
 const STEPS = [
   {
     num: "1",
-    title: "Upload Image",
-    desc: "Drag & drop or browse for JPG, PNG, or BMP images.",
+    title: "Unggah Gambar",
+    desc: "Tarik & lepas atau cari gambar JPG, PNG, atau BMP.",
   },
   {
     num: "2",
-    title: "Apply Processing",
-    desc: "Choose from 11 modules with real-time parameter controls.",
+    title: "Terapkan Pemrosesan",
+    desc: "Pilih dari 11 modul dengan kontrol parameter real-time.",
   },
   {
     num: "3",
-    title: "Compare & Analyze",
-    desc: "View before/after side-by-side with histogram analysis.",
+    title: "Bandingkan & Analisis",
+    desc: "Lihat hasil sebelum/sesudah secara berdampingan dengan analisis histogram.",
   },
   {
     num: "4",
-    title: "Export Result",
-    desc: "Download your processed image in your preferred format.",
+    title: "Ekspor Hasil",
+    desc: "Unduh gambar yang telah diproses dalam format pilihan Anda.",
+  },
+];
+
+const TEAM = [
+  {
+    name: "Falihelmandaghaisan",
+    role: "Pengembang Frontend",
+    nim: "220101001",
+    class: "IF-46-01",
+    image: "/creators/creator1.png",
+  },
+  {
+    name: "Muhammad Fatih Ammario Seno",
+    role: "Pengembang Backend",
+    nim: "220101002",
+    class: "IF-46-01",
+    image: "/creators/creator2.png",
   },
 ];
 
@@ -150,10 +167,14 @@ export default function LandingPage() {
 
         {/* Nav links */}
         <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-          {["Features", "How It Works"].map((item) => (
+          {[
+            { label: "Fitur", id: "features" },
+            { label: "Cara Kerja", id: "how-it-works" },
+            { label: "Tim", id: "team" }
+          ].map((item) => (
             <a
-              key={item}
-              href={`#${item.toLowerCase().replace(/ /g, "-")}`}
+              key={item.id}
+              href={`#${item.id}`}
               style={{
                 fontSize: 13,
                 color: "var(--text-secondary)",
@@ -164,7 +185,7 @@ export default function LandingPage() {
               onMouseEnter={(e) => (e.currentTarget.style.color = "var(--wine-light)")}
               onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
             >
-              {item}
+              {item.label}
             </a>
           ))}
         </div>
@@ -173,7 +194,7 @@ export default function LandingPage() {
 
         <Link href="/editor" style={{ textDecoration: "none" }}>
           <button className="btn-primary" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            Open Editor <ArrowRight size={14} />
+            Buka Editor <ArrowRight size={14} />
           </button>
         </Link>
       </nav>
@@ -222,8 +243,8 @@ export default function LandingPage() {
             margin: "0 0 20px",
           }}
         >
-          Image Processing,{" "}
-          <span style={{ color: "var(--wine-light)" }}>Simplified</span>
+          Pengolahan Citra,{" "}
+          <span style={{ color: "var(--wine-light)" }}>Lebih Sederhana</span>
         </h1>
 
         {/* Subheadline */}
@@ -237,8 +258,8 @@ export default function LandingPage() {
             margin: "0 auto 40px",
           }}
         >
-          A full-stack digital image processing application with 11 modules,
-          featuring real-time AI-based object recognition.
+          Aplikasi pengolahan citra digital full-stack dengan 11 modul,
+          dilengkapi pengenalan objek berbasis AI secara real-time.
         </p>
 
         {/* CTA buttons */}
@@ -260,13 +281,13 @@ export default function LandingPage() {
                 gap: 8,
               }}
             >
-              Launch Editor
+              Mulai Editor
               <ArrowRight size={16} />
             </button>
           </Link>
           <a href="#features" style={{ textDecoration: "none" }}>
             <button className="btn-wine-outline btn-lg">
-              Explore Features
+              Jelajahi Fitur
             </button>
           </a>
         </div>
@@ -284,10 +305,10 @@ export default function LandingPage() {
           }}
         >
           {[
-            { value: "11", label: "Modules" },
-            { value: "6", label: "Edge Methods" },
-            { value: "30+", label: "Operations" },
-            { value: "CNN", label: "AI Powered" },
+            { value: "11", label: "Modul" },
+            { value: "6", label: "Metode Tepi" },
+            { value: "30+", label: "Operasi" },
+            { value: "CNN", label: "Berbasis AI" },
           ].map((stat) => (
             <div key={stat.label} className="stat-card">
               <div className="stat-value">{stat.value}</div>
@@ -319,7 +340,7 @@ export default function LandingPage() {
               color: "var(--text-primary)",
             }}
           >
-            11 Processing Modules
+            11 Modul Pemrosesan
           </h2>
           <p
             style={{
@@ -330,8 +351,8 @@ export default function LandingPage() {
               lineHeight: 1.6,
             }}
           >
-            From basic enhancement to AI-powered object recognition,
-            everything you need in one application.
+            Dari perbaikan dasar hingga pengenalan objek berbasis AI,
+            semua yang Anda butuhkan dalam satu aplikasi.
           </p>
         </div>
 
@@ -412,10 +433,10 @@ export default function LandingPage() {
                 marginBottom: 12,
               }}
             >
-              How It Works
+              Cara Kerja
             </h2>
             <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.6 }}>
-              From upload to export in four simple steps.
+              Dari unggah hingga ekspor dalam empat langkah mudah.
             </p>
           </div>
 
@@ -465,8 +486,60 @@ export default function LandingPage() {
       </section>
 
       {/* ═══════════════════════════════════════════
-          TECH STACK
+          TEAM BIODATA
           ═══════════════════════════════════════════ */}
+      <section
+        id="team"
+        style={{
+          padding: "80px 32px",
+          maxWidth: 1100,
+          margin: "0 auto",
+        }}
+      >
+        <div style={{ textAlign: "center", marginBottom: 56 }}>
+          <div className="section-divider" style={{ marginBottom: 20 }} />
+          <h2 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-0.03em", marginBottom: 12 }}>
+            Tim Pengembang
+          </h2>
+          <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+            Kenali para pengembang di balik Mini Photoshop.
+          </p>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: 24 }}>
+          {TEAM.map((member) => (
+            <div
+              key={member.name}
+              className="feature-item"
+              style={{
+                background: "rgba(255, 255, 255, 0.03)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid var(--border-wine)",
+                position: "relative",
+                overflow: "hidden",
+                padding: "24px",
+                borderRadius: "var(--radius-lg)",
+                transition: "all 0.3s ease",
+              }}
+            >
+              <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+                <div style={{ width: 80, height: 80, borderRadius: "50%", overflow: "hidden", border: "2px solid var(--wine)", flexShrink: 0 }}>
+                  <img src={member.image} alt={member.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", marginBottom: 4 }}>{member.name}</h3>
+                  <p style={{ fontSize: 13, color: "var(--wine-lighter)", fontWeight: 600, marginBottom: 8 }}>{member.role}</p>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text-secondary)" }}>
+                    <div>NIM: {member.nim}</div>
+                    <div>Kelas: {member.class}</div>
+                  </div>
+                </div>
+              </div>
+              <Cpu size={16} style={{ position: "absolute", top: 16, right: 16, opacity: 0.2, color: "var(--wine-lighter)" }} />
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* ═══════════════════════════════════════════
           CTA FOOTER
@@ -488,7 +561,7 @@ export default function LandingPage() {
             marginBottom: 16,
           }}
         >
-          Ready to Process Images?
+          Siap Mengolah Gambar?
         </h2>
         <p
           className="animate-fade-in stagger-1"
@@ -499,14 +572,14 @@ export default function LandingPage() {
             lineHeight: 1.6,
           }}
         >
-          Open the editor and start working with all 11 modules instantly.
+          Buka editor dan mulai gunakan ke-11 modul secara instan.
         </p>
         <Link href="/editor" style={{ textDecoration: "none" }}>
           <button
             className="btn-primary btn-lg animate-fade-in stagger-2"
             style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
           >
-            Open Editor
+            Buka Editor
             <ChevronRight size={16} />
           </button>
         </Link>
