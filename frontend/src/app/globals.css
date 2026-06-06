@@ -443,25 +443,35 @@ input[type="range"]::-moz-range-thumb {
    Select
    ═══════════════════════════════════════════ */
 select {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  padding: 7px 12px;
-  font-size: 13px;
-  font-family: var(--font-sans);
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.2s ease;
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 8px 32px 8px 12px !important;
+  font-size: 12px !important;
+  font-family: var(--font-sans) !important;
+  cursor: pointer !important;
+  outline: none !important;
+  transition: all 0.2s ease !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+}
+
+select:hover {
+  border-color: var(--border-wine) !important;
+  background: var(--bg-hover) !important;
 }
 
 select:focus {
-  border-color: var(--wine);
+  border-color: var(--wine) !important;
+  box-shadow: 0 0 0 2px rgba(146, 26, 26, 0.15) !important;
 }
 
 select option {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  padding: 8px !important;
 }
 
 /* ═══════════════════════════════════════════

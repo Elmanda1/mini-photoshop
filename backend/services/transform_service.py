@@ -7,6 +7,20 @@ import cv2
 import numpy as np
 
 
+def _crop_to_alpha_content(img: np.ndarray) -> np.ndarray:
+    """Trim transparent padding while preserving visible pixels."""
+    if img.ndim != 3 or img.shape[2] != 4:
+        return img
+
+    alpha = img[:, :, 3]
+    coords = cv2.findNonZero((alpha > 0).astype(np.uint8))
+    if coords is None:
+        return img
+
+    x, y, w, h = cv2.boundingRect(coords)
+    return img[y:y + h, x:x + w].copy()
+
+
 def rotate_image(img: np.ndarray, angle: float) -> np.ndarray:
     """
     Rotate image by a given angle (degrees).
@@ -31,13 +45,20 @@ def rotate_image(img: np.ndarray, angle: float) -> np.ndarray:
     # Calculate new bounding box size
     cos = np.abs(M[0, 0])
     sin = np.abs(M[0, 1])
-    new_w = int(h * sin + w * cos)
-    new_h = int(h * cos + w * sin)
+    new_w = int(np.ceil(h * sin + w * cos))
+    new_h = int(np.ceil(h * cos + w * sin))
     
     # Adjust the rotation matrix for the new center
     M[0, 2] += (new_w - w) / 2.0
     M[1, 2] += (new_h - h) / 2.0
     
+    # Use the existing alpha channel as the content mask. This prevents
+    # transparent padding from previous rotations from growing repeatedly.
+    if img.ndim == 3 and img.shape[2] == 4:
+        source_mask = img[:, :, 3]
+    else:
+        source_mask = np.ones((h, w), dtype=np.uint8) * 255
+
     # Ensure image has an alpha channel for transparent borders
     if img.ndim == 3 and img.shape[2] == 3:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
@@ -47,16 +68,13 @@ def rotate_image(img: np.ndarray, angle: float) -> np.ndarray:
     # Warp image content
     warped = cv2.warpAffine(img, M, (new_w, new_h), flags=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0, 0))
     
-    # Create an opaque mask for the original image footprint
-    mask = np.ones((h, w), dtype=np.uint8) * 255
-    
     # Warp the mask to locate original pixels versus transparent background
-    warped_mask = cv2.warpAffine(mask, M, (new_w, new_h), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    warped_mask = cv2.warpAffine(source_mask, M, (new_w, new_h), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
     
     # Force the alpha channel to match the warped mask precisely
     warped[:, :, 3] = warped_mask
     
-    return warped
+    return _crop_to_alpha_content(warped)
 
 
 
@@ -127,10 +145,8 @@ def resize_image(img: np.ndarray, scale: float = 1.0, width: int = None, height:
 def translate_image(img: np.ndarray, tx: int, ty: int) -> np.ndarray:
     """
     Translate (shift) image by tx, ty pixels.
-    Expands the canvas dynamically so that no clipping/cropping of content occurs.
-    Fills empty borders with transparency.
-    Proportionally scales tx and ty if the image is full-resolution (w > 800)
-    to match the frontend's 800px preview translation exactly.
+    Keeps the canvas size fixed, matching common editor move/translate behavior.
+    Empty areas are transparent and pixels moved outside the canvas are clipped.
     
     Args:
         img: Input image (BGR or BGRA)
@@ -138,35 +154,20 @@ def translate_image(img: np.ndarray, tx: int, ty: int) -> np.ndarray:
         ty: Vertical translation (pixels)
         
     Returns:
-        Translated image (BGRA)
+        Translated image (BGRA), with the same width and height as input
     """
     h, w = img.shape[:2]
-    
-    # Scale tx and ty proportionally if we are processing the full-resolution image
-    # since the frontend downscales the image to a max-width of 800px during live preview.
-    if w > 800:
-        scale_factor = w / 800.0
-        tx = int(round(tx * scale_factor))
-        ty = int(round(ty * scale_factor))
     
     # Ensure image has an alpha channel for transparent borders
     if img.ndim == 3 and img.shape[2] == 3:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
         
-    # Calculate new dimensions to prevent clipping/cropping of content
-    new_w = w + abs(tx)
-    new_h = h + abs(ty)
-    
-    # Determine the placement offset inside the new larger canvas
-    # If tx > 0, we shift to the right, so we start at x = tx (padding on the left)
-    # If tx < 0, we shift to the left, so we start at x = 0 (padding on the right)
-    dx = tx if tx > 0 else 0
-    dy = ty if ty > 0 else 0
-    
-    # Create new transparent canvas
-    translated = np.zeros((new_h, new_w, 4), dtype=img.dtype)
-    
-    # Place the original image inside the expanded transparent canvas
-    translated[dy:dy+h, dx:dx+w] = img
-    
-    return translated
+    matrix = np.float32([[1, 0, tx], [0, 1, ty]])
+    return cv2.warpAffine(
+        img,
+        matrix,
+        (w, h),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=(0, 0, 0, 0),
+    )

@@ -245,7 +245,7 @@ interface ToolPanelProps {
   hasImage: boolean;
   loading: boolean;
   imageDimensions: { width: number; height: number } | null;
-  liveFilters: { brightness: number; contrast: number; hueShift: number; saturation: number; rotation: number; scale: number };
+  liveFilters: { brightness: number; contrast: number; hueShift: number; saturation: number; rotation: number; scale: number; translateX: number; translateY: number };
   setLiveFilters: (filters: any) => void;
   onOpenCropModal: () => void;
   resetKey: number;
@@ -364,9 +364,11 @@ export default function ToolPanel({
 
   // Edge
   const [edgeMethod, setEdgeMethod] = useState("canny");
+  const [binaryMethod, setBinaryMethod] = useState("threshold");
   const [threshold1, setThreshold1] = useState(100);
   const [threshold2, setThreshold2] = useState(200);
   const [edgeKernel, setEdgeKernel] = useState(5);
+  const [logSigma, setLogSigma] = useState(1.0);
   const [morphIterations, setMorphIterations] = useState(1);
 
   // Color Processing States
@@ -401,9 +403,11 @@ export default function ToolPanel({
     setFilterKernel(5);
     setNoiseAmount(0.05);
     setEdgeMethod("canny");
+    setBinaryMethod("threshold");
     setThreshold1(100);
     setThreshold2(200);
     setEdgeKernel(5);
+    setLogSigma(1.0);
     setMorphIterations(1);
     setColorMode("normal");
     setColorChannel("r");
@@ -444,6 +448,7 @@ export default function ToolPanel({
   const handleRotateApply = () => {
     if (hasImage && !loading) {
       onApply("transform", "rotate", { angle }, false);
+      setAngle(0);
     }
   };
 
@@ -451,13 +456,15 @@ export default function ToolPanel({
     setTx(x);
     setTy(y);
     if (hasImage && !loading) {
-      onApply("transform", "translate", { tx: x, ty: y }, true);
+      setLiveFilters({ ...liveFilters, translateX: x, translateY: y });
     }
   };
 
   const handleTranslateApply = () => {
     if (hasImage && !loading) {
       onApply("transform", "translate", { tx, ty }, false);
+      setTx(0);
+      setTy(0);
     }
   };
 
@@ -669,31 +676,81 @@ export default function ToolPanel({
 
         {/* Edge Detection */}
         <Section title="Edge & Binary" icon={<ScanLine size={15} />}>
-          <div style={{ marginBottom: 10 }}>
-            <span style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 5, fontWeight: 500 }}>Method</span>
-            <select value={edgeMethod} onChange={(e) => setEdgeMethod(e.target.value)} style={{ width: "100%" }}>
-              <option value="canny">Canny</option>
-              <option value="sobel">Sobel</option>
-              <option value="prewitt">Prewitt</option>
-              <option value="robert">Robert</option>
-              <option value="laplacian">Laplacian</option>
-              <option value="log">LoG</option>
-            </select>
+          {/* --- PART 1: EDGE DETECTION --- */}
+          <div style={{ marginBottom: 16, padding: "10px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid var(--border-color)" }}>
+            <span style={{ fontSize: 10, color: "var(--wine-lighter)", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 8 }}>1. Deteksi Tepi (Edge)</span>
+            
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 6, fontWeight: 500 }}>Metode Tepi</span>
+              <div style={{ position: "relative" }}>
+                <select value={edgeMethod} onChange={(e) => setEdgeMethod(e.target.value)}>
+                  <option value="canny">Canny - Garis Bersih</option>
+                  <option value="sobel">Sobel - Gradien Kuat</option>
+                  <option value="prewitt">Prewitt - Gradien Simpel</option>
+                  <option value="robert">Robert - Detail Kecil</option>
+                  <option value="laplacian">Laplacian - Tekstur</option>
+                  <option value="log">LoG - Blur + Laplacian</option>
+                </select>
+                <ChevronDown size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "var(--text-muted)" }} />
+              </div>
+            </div>
+
+            {/* Params based on Method */}
+            {edgeMethod === "canny" && (
+              <>
+                <SliderControl label="Threshold 1 (Min)" value={threshold1} min={0} max={255} step={1} onChange={setThreshold1} />
+                <SliderControl label="Threshold 2 (Max)" value={threshold2} min={0} max={255} step={1} onChange={setThreshold2} />
+              </>
+            )}
+            
+            {(edgeMethod === "canny" || edgeMethod === "sobel" || edgeMethod === "prewitt" || edgeMethod === "log" || edgeMethod === "laplacian") && (
+              <SliderControl label="Besar Kernel" value={edgeKernel} min={3} max={15} step={2} onChange={setEdgeKernel} />
+            )}
+
+            {edgeMethod === "log" && (
+              <SliderControl label="Gaussian Sigma" value={logSigma} min={0.5} max={5.0} step={0.1} onChange={setLogSigma} />
+            )}
+
+            <button className="btn-primary" style={{ width: "100%" }} disabled={disabled}
+              onClick={() => onApply("edge", edgeMethod, { 
+                threshold1, 
+                threshold2, 
+                kernel_size: edgeKernel,
+                sigma: logSigma
+              })}>Deteksi Garis Tepi</button>
           </div>
-          <SliderControl label="Threshold 1" value={threshold1} min={0} max={255} step={1} onChange={setThreshold1} />
-          <SliderControl label="Threshold 2" value={threshold2} min={0} max={255} step={1} onChange={setThreshold2} />
-          <button className="btn-primary" style={{ width: "100%", marginBottom: 8 }} disabled={disabled}
-            onClick={() => onApply("edge", edgeMethod, { threshold1, threshold2, kernel_size: edgeKernel })}>Detect Edges</button>
-          <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-            <button className="btn-secondary" style={{ flex: 1 }} disabled={disabled}
-              onClick={() => onApply("edge", "threshold", { thresh_value: threshold1 })}>Threshold</button>
-            <button className="btn-secondary" style={{ flex: 1 }} disabled={disabled}
-              onClick={() => onApply("edge", "erosion", { kernel_size: edgeKernel, iterations: morphIterations })}>Erode</button>
-            <button className="btn-secondary" style={{ flex: 1 }} disabled={disabled}
-              onClick={() => onApply("edge", "dilation", { kernel_size: edgeKernel, iterations: morphIterations })}>Dilate</button>
+
+          {/* --- PART 2: BINARY & MORPHOLOGY --- */}
+          <div style={{ padding: "10px", background: "rgba(255,255,255,0.02)", borderRadius: 8, border: "1px solid var(--border-color)" }}>
+            <span style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 8 }}>2. Operasi Biner (Morfologi)</span>
+            
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 6, fontWeight: 500 }}>Metode Biner</span>
+              <div style={{ position: "relative" }}>
+                <select value={binaryMethod} onChange={(e) => setBinaryMethod(e.target.value)}>
+                  <option value="threshold">Threshold (Hitam-Putih)</option>
+                  <option value="erosion">Erosi (Menipiskan)</option>
+                  <option value="dilation">Dilatasi (Menebalkan)</option>
+                </select>
+                <ChevronDown size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "var(--text-muted)" }} />
+              </div>
+            </div>
+
+            {binaryMethod === "threshold" ? (
+              <SliderControl label="Nilai Ambang" value={threshold1} min={0} max={255} step={1} onChange={setThreshold1} />
+            ) : (
+              <>
+                <SliderControl label="Besar Kernel" value={edgeKernel} min={3} max={15} step={2} onChange={setEdgeKernel} />
+                <SliderControl label="Iterasi" value={morphIterations} min={1} max={10} step={1} onChange={setMorphIterations} />
+              </>
+            )}
+
+            <button className="btn-secondary" style={{ width: "100%", borderColor: "var(--gold)", color: "var(--gold)" }} disabled={disabled}
+              onClick={() => {
+                if (binaryMethod === "threshold") onApply("edge", "threshold", { thresh_value: threshold1 });
+                else onApply("edge", binaryMethod, { kernel_size: edgeKernel, iterations: morphIterations });
+              }}>Terapkan Operasi Biner</button>
           </div>
-          <SliderControl label="Morph Kernel" value={edgeKernel} min={3} max={15} step={2} onChange={setEdgeKernel} />
-          <SliderControl label="Iterations" value={morphIterations} min={1} max={10} step={1} onChange={setMorphIterations} />
         </Section>
 
         {/* Color Processing — PREVIEW & COMMIT SYSTEM */}
@@ -861,17 +918,42 @@ export default function ToolPanel({
 
         {/* Segmentation */}
         <Section title="Segmentation" icon={<Layers size={15} />}>
-          <div style={{ marginBottom: 10 }}>
-            <span style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 5, fontWeight: 500 }}>Method</span>
-            <select value={segMethod} onChange={(e) => setSegMethod(e.target.value)} style={{ width: "100%" }}>
-              <option value="threshold">Threshold</option>
-              <option value="edge">Edge-based</option>
-              <option value="region">Region (K-means)</option>
-            </select>
+          <div style={{ marginBottom: 12 }}>
+            <span style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 6, fontWeight: 500 }}>Segmentation Method</span>
+            <div style={{ position: "relative" }}>
+              <select 
+                value={segMethod} 
+                onChange={(e) => setSegMethod(e.target.value)} 
+                style={{ 
+                  width: "100%", 
+                  appearance: "none",
+                  padding: "8px 12px",
+                  background: "var(--bg-elevated)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: 6,
+                  color: "var(--text-primary)",
+                  fontSize: 12,
+                  outline: "none",
+                  cursor: "pointer"
+                }}
+              >
+                <option value="threshold">Threshold mask - brightness cutoff</option>
+                <option value="edge">Edge contours - Canny regions</option>
+                <option value="region">K-means regions - color clusters</option>
+              </select>
+              <ChevronDown size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "var(--text-muted)" }} />
+            </div>
           </div>
-          {segMethod !== "region" ? (
-            <SliderControl label="Threshold" value={segThreshold} min={0} max={255} step={1} onChange={setSegThreshold} />
-          ) : (
+          {segMethod === "threshold" && (
+            <SliderControl label="Mask Threshold" value={segThreshold} min={0} max={255} step={1} onChange={setSegThreshold} />
+          )}
+          {segMethod === "edge" && (
+            <>
+              <SliderControl label="Low Threshold" value={threshold1} min={0} max={255} step={1} onChange={setThreshold1} />
+              <SliderControl label="High Threshold" value={threshold2} min={0} max={255} step={1} onChange={setThreshold2} />
+            </>
+          )}
+          {segMethod === "region" && (
             <SliderControl label="Regions" value={numRegions} min={2} max={10} step={1} onChange={setNumRegions} />
           )}
           <button className="btn-primary" style={{ width: "100%" }} disabled={disabled}
@@ -880,31 +962,32 @@ export default function ToolPanel({
 
         {/* Compression */}
         <Section title="Compression" icon={<Archive size={15} />}>
-          <SliderControl label="JPEG Quality" value={compressQuality} min={1} max={100} step={1} onChange={setCompressQuality} unit="%" />
-          <button className="btn-primary" style={{ width: "100%", marginTop: 12 }} disabled={disabled}
-            onClick={() => {
-              console.log("[DEBUG] ToolPanel sending compression quality:", compressQuality);
-              onApply("compress", "jpeg", { quality: Math.round(compressQuality) }, false);
-            }}>Apply Compression</button>
-        </Section>
+          <div style={{ marginBottom: 14 }}>
+            <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 6 }}>
+              Method
+            </span>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                className={compressMethod === "jpeg" ? "btn-primary" : "btn-secondary"}
+                style={{ flex: 1, height: 28, fontSize: 10, fontWeight: 600 }}
+                onClick={() => setCompressMethod("jpeg")}
+              >
+                Lossy (JPEG)
+              </button>
+              <button
+                className={compressMethod === "rle" ? "btn-primary" : "btn-secondary"}
+                style={{ flex: 1, height: 28, fontSize: 10, fontWeight: 600 }}
+                onClick={() => setCompressMethod("rle")}
+              >
+                Lossless (RLE)
+              </button>
+            </div>
+          </div>
 
-        {/* AI Recognition */}
-        <Section title="AI Recognition" icon={<Brain size={15} />}>
-          <p style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.6 }}>
-            Use MobileNetV2 CNN to classify image content. Returns top-5 predictions with confidence scores.
-          </p>
-          <button className="btn-primary"
-            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-            disabled={disabled}
-            onClick={() => onApply("ml", "recognize", {})}>
-            <Sparkles size={14} /> Recognize Object
-          </button>
-        </Section>
-      </div>
-    </div>
-  );
-}
-rginBottom: 12 }}>
+          {compressMethod === "jpeg" ? (
+            <SliderControl label="JPEG Quality" value={compressQuality} min={1} max={100} step={1} onChange={setCompressQuality} unit="%" />
+          ) : (
+            <div style={{ padding: "10px 12px", background: "var(--bg-elevated)", border: "1px dashed var(--border-color)", borderRadius: 8, textAlign: "center", marginBottom: 12 }}>
               <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
                 RLE preserves pixels perfectly (100% Quality).
               </span>
@@ -923,7 +1006,7 @@ rginBottom: 12 }}>
         {/* AI Recognition */}
         <Section title="AI Recognition" icon={<Brain size={15} />}>
           <p style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.6 }}>
-            Use MobileNetV2 CNN to classify image content. Returns top-5 predictions with confidence scores.
+            Gunakan Binary CNN TensorFlow untuk mendeteksi apakah subjek dalam gambar adalah Manusia atau Bukan (Human vs Not Human).
           </p>
           <button className="btn-primary"
             style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}

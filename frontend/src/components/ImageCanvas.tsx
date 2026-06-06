@@ -17,6 +17,8 @@ interface ImageCanvasProps {
     saturation: number;
     rotation: number;
     scale: number;
+    translateX: number;
+    translateY: number;
   };
   imageDimensions?: { width: number; height: number } | null;
   originalDimensions?: { width: number; height: number } | null;
@@ -30,11 +32,11 @@ export default function ImageCanvas({
   zoom,
   liveFilters,
   imageDimensions,
-  originalDimensions,
 }: ImageCanvasProps) {
   const [pan, setPan] = React.useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const afterContainerRef = React.useRef<HTMLDivElement>(null);
   const imgRef = React.useRef<HTMLImageElement>(null);
 
   const onDrop = useCallback(
@@ -63,7 +65,7 @@ export default function ImageCanvas({
   });
 
   const liveFiltersStyle = React.useMemo(() => {
-    if (!liveFilters) return { filter: "none", rotation: 0 };
+    if (!liveFilters) return { filter: "none", rotation: 0, scale: 1.0, translateX: 0, translateY: 0 };
     
     const filterStr = `
       brightness(${100 * (1 + liveFilters.brightness / 100)}%)
@@ -75,25 +77,11 @@ export default function ImageCanvas({
       filter: filterStr,
       rotation: liveFilters.rotation || 0,
       scale: liveFilters.scale || 1.0,
+      translateX: liveFilters.translateX || 0,
+      translateY: liveFilters.translateY || 0,
     };
   }, [liveFilters]);
 
-
-  const [containerSize, setContainerSize] = React.useState({ width: 800, height: 600 });
-
-  React.useEffect(() => {
-    if (!containerRef.current) return;
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (let entry of entries) {
-        setContainerSize({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
-        });
-      }
-    });
-    resizeObserver.observe(containerRef.current);
-    return () => resizeObserver.disconnect();
-  }, []);
 
   const beforeStyle = React.useMemo(() => ({
     transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
@@ -103,36 +91,47 @@ export default function ImageCanvas({
     maxHeight: "100%",
     objectFit: "contain" as const,
     transition: isDragging ? "none" : "transform 0.15s ease",
-    borderRadius: "var(--radius-sm)",
     backfaceVisibility: "hidden" as const,
   }), [zoom, pan, isDragging]);
 
-  const scaleMultiplier = React.useMemo(() => {
-    if (!imageDimensions || !originalDimensions) return 1.0;
-    
-    // Viewport dimensions with padding taken into account (padding: 24px -> 48px total)
-    const vpW = Math.max(10, containerSize.width - 48);
-    const vpH = Math.max(10, containerSize.height - 48);
-    
-    // Contain scale factors for before and after images
-    const sBefore = Math.min(vpW / originalDimensions.width, vpH / originalDimensions.height);
-    const sAfter = Math.min(vpW / imageDimensions.width, vpH / imageDimensions.height);
-    
-    if (!isFinite(sBefore) || !isFinite(sAfter) || sBefore <= 0 || sAfter <= 0) {
-      return imageDimensions.width / originalDimensions.width;
-    }
-    
-    return sBefore / sAfter;
-  }, [imageDimensions, originalDimensions, containerSize]);
+  const [afterContainerSize, setAfterContainerSize] = React.useState({ width: 800, height: 600 });
+
+  React.useEffect(() => {
+    if (!afterContainerRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+
+      setAfterContainerSize({
+        width: entry.contentRect.width,
+        height: entry.contentRect.height,
+      });
+    });
+
+    resizeObserver.observe(afterContainerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  const imageDisplayScale = React.useMemo(() => {
+    if (!imageDimensions) return 1.0;
+
+    const vpW = Math.max(10, afterContainerSize.width - 48);
+    const vpH = Math.max(10, afterContainerSize.height - 48);
+
+    return Math.min(1.0, vpW / imageDimensions.width, vpH / imageDimensions.height);
+  }, [afterContainerSize, imageDimensions]);
 
   const imageStyle = React.useMemo(() => ({
     ...beforeStyle,
-    transform: `${beforeStyle.transform} scale(${liveFiltersStyle.scale * scaleMultiplier}) rotate(${liveFiltersStyle.rotation}deg)`,
+    width: imageDimensions ? `${imageDimensions.width}px` : undefined,
+    height: imageDimensions ? `${imageDimensions.height}px` : undefined,
+    transform: `${beforeStyle.transform} translate(${liveFiltersStyle.translateX * imageDisplayScale}px, ${liveFiltersStyle.translateY * imageDisplayScale}px) scale(${liveFiltersStyle.scale}) rotate(${liveFiltersStyle.rotation}deg)`,
     filter: liveFiltersStyle.filter,
     cursor: isDragging ? "grabbing" : "grab",
     // Remove transitions entirely as requested for a snappier, non-floaty feel
     transition: "none",
-  }), [beforeStyle, liveFiltersStyle, isDragging, scaleMultiplier]);
+  }), [beforeStyle, imageDimensions, imageDisplayScale, liveFiltersStyle, isDragging]);
 
 
 
@@ -260,8 +259,9 @@ export default function ImageCanvas({
           <div style={{ position: "absolute", top: 12, left: 16, zIndex: 10, background: "var(--wine-bg-strong)", border: "1px solid var(--border-wine)", padding: "4px 10px", borderRadius: 4, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "var(--wine-light)" }}>
             AFTER
           </div>
-          <div className="canvas-checkerboard" style={{ flex: 1, overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center", padding: 24, userSelect: "none" }}>
+          <div ref={afterContainerRef} className="canvas-checkerboard" style={{ flex: 1, overflow: "hidden", display: "flex", justifyContent: "center", alignItems: "center", padding: 24, userSelect: "none" }}>
             <img 
+              ref={imgRef}
               src={`data:image/png;base64,${currentImage}`} 
               alt="Edited Image" 
               style={imageStyle} 

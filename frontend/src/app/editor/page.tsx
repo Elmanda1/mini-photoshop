@@ -17,6 +17,7 @@ import {
   recognizeObject,
 } from "@/lib/api";
 import CropResizeModal from "@/components/CropResizeModal";
+import HelpModal from "@/components/HelpModal";
 
 import {
   RotateCcw,
@@ -137,6 +138,7 @@ export default function EditorPage() {
 
   const [zoom, setZoom] = useState(1);
   const [resetKey, setResetKey] = useState(0);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 const [liveFilters, setLiveFilters] = useState({
   brightness: 0,
   contrast: 1.0,
@@ -144,6 +146,8 @@ const [liveFilters, setLiveFilters] = useState({
   saturation: 1.0,
   rotation: 0,
   scale: 1.0,
+  translateX: 0,
+  translateY: 0,
 });
 
   const [historyState, setHistoryState] = useState<{
@@ -262,6 +266,8 @@ const [liveFilters, setLiveFilters] = useState({
       saturation: 1.0,
       rotation: 0,
       scale: 1.0,
+      translateX: 0,
+      translateY: 0,
     });
     setZoom(1);
     setResetKey((k) => k + 1);
@@ -298,6 +304,8 @@ const [liveFilters, setLiveFilters] = useState({
         saturation: 1.0,
         rotation: 0,
         scale: 1.0,
+        translateX: 0,
+        translateY: 0,
       });
       lastOperationRef.current = null;
       showToast("Preview discarded");
@@ -553,7 +561,7 @@ const [liveFilters, setLiveFilters] = useState({
             if (!isLive) {
               // Now that the new bits are in the browser's memory, we swap everything at once
               setDisplayImage(result.image);
-              setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0, scale: 1.0 });
+              setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0, scale: 1.0, translateX: 0, translateY: 0 });
               setImageDimensions({ width: img.width, height: img.height });
               if (operation === "crop" || operation === "resize") {
                 setOriginalDimensions({ width: img.width, height: img.height });
@@ -608,7 +616,8 @@ const [liveFilters, setLiveFilters] = useState({
         img.src = `data:image/png;base64,${state.image}`;
 
         lastOperationRef.current = null;
-        setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0, scale: 1.0 });
+        setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0, scale: 1.0, translateX: 0, translateY: 0 });
+        setResetKey((k) => k + 1);
         getHistogram(state.image).then(setHistData).catch(() => { });
         return { ...prev, index: newIdx };
       }
@@ -629,7 +638,7 @@ const [liveFilters, setLiveFilters] = useState({
         img.src = `data:image/png;base64,${state.image}`;
 
         lastOperationRef.current = null;
-        setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0, scale: 1.0 });
+        setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0, scale: 1.0, translateX: 0, translateY: 0 });
         setResetKey((k) => k + 1);
         getHistogram(state.image).then(setHistData).catch(() => { });
         return { ...prev, index: newIdx };
@@ -703,20 +712,11 @@ const [liveFilters, setLiveFilters] = useState({
             <MenuItem label="Image Size..." disabled />
             <MenuItem label="Canvas Size..." disabled />
           </MenuButton>
-          <MenuButton label="Layer">
-            <MenuItem label="New" disabled />
-            <MenuItem label="Duplicate Layer..." disabled />
-          </MenuButton>
-          <MenuButton label="Filter">
-            <MenuItem label="Noise" disabled />
-            <MenuItem label="Blur" disabled />
-            <MenuItem label="Sharpen" disabled />
-          </MenuButton>
           <MenuButton label="View">
             <MenuItem label={showHistogram ? "Hide Histogram" : "Show Histogram"} onClick={() => setShowHistogram(!showHistogram)} />
           </MenuButton>
           <MenuButton label="Help">
-            <MenuItem label="About Mini Photoshop" />
+            <MenuItem label="About Mini Photoshop" onClick={() => setIsHelpOpen(true)} />
           </MenuButton>
         </div>
       </div>
@@ -819,7 +819,6 @@ const [liveFilters, setLiveFilters] = useState({
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
         {/* Left: Tools */}
           <ToolPanel 
-            key={resetKey}
             onApply={handleApply} 
             onCancelPreview={handleCancelPreview}
             hasImage={!!uploadedImage} 
@@ -828,6 +827,7 @@ const [liveFilters, setLiveFilters] = useState({
             liveFilters={liveFilters}
             setLiveFilters={setLiveFilters}
             onOpenCropModal={() => setIsCropModalOpen(true)}
+            resetKey={resetKey}
           />
 
         {/* Center: Single canvas */}
@@ -1156,6 +1156,11 @@ const [liveFilters, setLiveFilters] = useState({
         onApply={handleApply}
         image={displayImage}
         imageDimensions={imageDimensions}
+      />
+
+      <HelpModal 
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
       />
 
       {toast && <div className="toast">{toast}</div>}
