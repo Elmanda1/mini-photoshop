@@ -115,18 +115,18 @@ const STEPS = [
 
 const TEAM = [
   {
-    name: "Falihelmandaghaisan",
-    role: "Pengembang Frontend",
-    nim: "220101001",
-    class: "IF-46-01",
-    image: "/creators/creator1.png",
+    name: "Falih Elmanda Ghaisan",
+    role: "Lead FullStack Developer",
+    nim: "2407411073",
+    class: "TI-4C",
+    image: "/creators/falih.jpeg",
   },
   {
     name: "Muhammad Fatih Ammario Seno",
-    role: "Pengembang Backend",
-    nim: "220101002",
-    class: "IF-46-01",
-    image: "/creators/creator2.png",
+    role: "FullStack Developer",
+    nim: "2407411074",
+    class: "TI-4C",
+    image: "/creators/fatih.jpeg",
   },
 ];
 
@@ -210,26 +210,6 @@ export default function LandingPage() {
           textAlign: "center",
         }}
       >
-        {/* Tag */}
-        <div
-          className="animate-fade-in"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "5px 14px",
-            borderRadius: "var(--radius-full)",
-            background: "var(--wine-bg)",
-            border: "1px solid var(--border-wine)",
-            fontSize: 12,
-            fontWeight: 600,
-            color: "var(--wine-lighter)",
-            marginBottom: 28,
-          }}
-        >
-          <Cpu size={12} />
-          Pengolahan Citra Digital
-        </div>
 
         {/* Headline */}
         <h1
@@ -308,7 +288,7 @@ export default function LandingPage() {
             { value: "11", label: "Modul" },
             { value: "6", label: "Metode Tepi" },
             { value: "30+", label: "Operasi" },
-            { value: "CNN", label: "Berbasis AI" },
+            { value: "CNN", label: "TensorFlow" },
           ].map((stat) => (
             <div key={stat.label} className="stat-card">
               <div className="stat-value">{stat.value}</div>
