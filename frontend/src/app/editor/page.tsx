@@ -630,6 +630,7 @@ const [liveFilters, setLiveFilters] = useState({
 
         lastOperationRef.current = null;
         setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0, scale: 1.0 });
+        setResetKey((k) => k + 1);
         getHistogram(state.image).then(setHistData).catch(() => { });
         return { ...prev, index: newIdx };
       }
