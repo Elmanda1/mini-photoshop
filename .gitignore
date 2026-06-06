@@ -33,3 +33,8 @@ desktop.ini
 # Dataset
 backend/dataset_binary/
 dataset_orl/
+
+# Local agent/tool artifacts
+*.skill
+docs/superpowers/
+frontend/.gemini/skills/*/data/
