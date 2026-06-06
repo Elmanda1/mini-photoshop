@@ -248,6 +248,7 @@ interface ToolPanelProps {
   liveFilters: { brightness: number; contrast: number; hueShift: number; saturation: number; rotation: number; scale: number };
   setLiveFilters: (filters: any) => void;
   onOpenCropModal: () => void;
+  resetKey: number;
 }
 
 const SECTION_COLORS: Record<string, string> = {
@@ -343,31 +344,11 @@ function SliderControl({
 
 
 export default function ToolPanel({
-  onApply, onCancelPreview, hasImage, loading, imageDimensions, liveFilters, setLiveFilters, onOpenCropModal
+  onApply, onCancelPreview, hasImage, loading, imageDimensions, liveFilters, setLiveFilters, onOpenCropModal, resetKey
 }: ToolPanelProps) {
   // Enhancement
   const [brightness, setBrightness] = useState(0);
   const [contrast, setContrast] = useState(1.0);
-
-  const handleBCChange = (b: number, c: number) => {
-    setBrightness(b);
-    setContrast(c);
-    if (hasImage && !loading) {
-      setLiveFilters({ ...liveFilters, brightness: b, contrast: c });
-    }
-  };
-
-  const handleBCApply = () => {
-    if (hasImage && !loading) {
-      // Convert brightness -100...100 to multiplier 0.0...2.0
-      const bMultiplier = 1 + (brightness / 100);
-      onApply("enhance", "brightness_contrast", { brightness: bMultiplier, contrast }, false);
-      setBrightness(0);
-      setContrast(1.0);
-      // Removed immediate setLiveFilters reset to avoid flicker
-    }
-  };
-
   const [sharpIntensity, setSharpIntensity] = useState(1.0);
   const [blurKernel, setBlurKernel] = useState(5);
 
@@ -376,41 +357,6 @@ export default function ToolPanel({
   const [tx, setTx] = useState(0);
   const [ty, setTy] = useState(0);
   const [scale, setScale] = useState(1.0);
-
-  const handleRotateChange = (a: number) => {
-    setAngle(a);
-    if (hasImage && !loading) {
-      setLiveFilters({ ...liveFilters, rotation: a });
-    }
-  };
-
-
-
-  const handleRotateApply = () => {
-    if (hasImage && !loading) {
-      onApply("transform", "rotate", { angle }, false);
-      setAngle(0);
-    }
-  };
-
-
-
-
-  const handleTranslateChange = (x: number, y: number) => {
-    setTx(x);
-    setTy(y);
-    if (hasImage && !loading) {
-      onApply("transform", "translate", { tx: x, ty: y }, true);
-    }
-  };
-
-  const handleTranslateApply = () => {
-    if (hasImage && !loading) {
-      onApply("transform", "translate", { tx, ty }, false);
-      setTx(0);
-      setTy(0);
-    }
-  };
 
   // Filter / noise
   const [filterKernel, setFilterKernel] = useState(5);
@@ -423,7 +369,7 @@ export default function ToolPanel({
   const [edgeKernel, setEdgeKernel] = useState(5);
   const [morphIterations, setMorphIterations] = useState(1);
 
-  // Color Processing States & Effects
+  // Color Processing States
   const [colorMode, setColorMode] = useState<"normal" | "grayscale" | "channel" | "tint" | "huesat">("normal");
   const [colorChannel, setColorChannel] = useState<"r" | "g" | "b">("r");
   const [hueShift, setHueShift] = useState(0);
@@ -431,6 +377,89 @@ export default function ToolPanel({
   const [tintColor, setTintColor] = useState("#8a2be2");
   const [tintIntensity, setTintIntensity] = useState(30);
   const [hasUnappliedColorChanges, setHasUnappliedColorChanges] = useState(false);
+
+  // Segment
+  const [segMethod, setSegMethod] = useState("threshold");
+  const [segThreshold, setSegThreshold] = useState(127);
+  const [numRegions, setNumRegions] = useState(3);
+
+  // Compress
+  const [compressQuality, setCompressQuality] = useState(80);
+  const [compressMethod, setCompressMethod] = useState<"jpeg" | "rle">("jpeg");
+
+  // Smooth Reset Mechanism
+  useEffect(() => {
+    // Reset all local states to default values when resetKey changes
+    setBrightness(0);
+    setContrast(1.0);
+    setSharpIntensity(1.0);
+    setBlurKernel(5);
+    setAngle(0);
+    setTx(0);
+    setTy(0);
+    setScale(1.0);
+    setFilterKernel(5);
+    setNoiseAmount(0.05);
+    setEdgeMethod("canny");
+    setThreshold1(100);
+    setThreshold2(200);
+    setEdgeKernel(5);
+    setMorphIterations(1);
+    setColorMode("normal");
+    setColorChannel("r");
+    setHueShift(0);
+    setSatScale(1.0);
+    setTintColor("#8a2be2");
+    setTintIntensity(30);
+    setHasUnappliedColorChanges(false);
+    setSegMethod("threshold");
+    setSegThreshold(127);
+    setNumRegions(3);
+    setCompressQuality(80);
+    setCompressMethod("jpeg");
+  }, [resetKey]);
+
+  const handleBCChange = (b: number, c: number) => {
+    setBrightness(b);
+    setContrast(c);
+    if (hasImage && !loading) {
+      setLiveFilters({ ...liveFilters, brightness: b, contrast: c });
+    }
+  };
+
+  const handleBCApply = () => {
+    if (hasImage && !loading) {
+      const bMultiplier = 1 + (brightness / 100);
+      onApply("enhance", "brightness_contrast", { brightness: bMultiplier, contrast }, false);
+    }
+  };
+
+  const handleRotateChange = (a: number) => {
+    setAngle(a);
+    if (hasImage && !loading) {
+      setLiveFilters({ ...liveFilters, rotation: a });
+    }
+  };
+
+  const handleRotateApply = () => {
+    if (hasImage && !loading) {
+      onApply("transform", "rotate", { angle }, false);
+    }
+  };
+
+  const handleTranslateChange = (x: number, y: number) => {
+    setTx(x);
+    setTy(y);
+    if (hasImage && !loading) {
+      onApply("transform", "translate", { tx: x, ty: y }, true);
+    }
+  };
+
+  const handleTranslateApply = () => {
+    if (hasImage && !loading) {
+      onApply("transform", "translate", { tx, ty }, false);
+    }
+  };
 
   // Trigger backend preview automatically when active states change
   useEffect(() => {
@@ -483,14 +512,6 @@ export default function ToolPanel({
     setTintIntensity(30);
     setHasUnappliedColorChanges(false);
   };
-
-  // Segment
-  const [segMethod, setSegMethod] = useState("threshold");
-  const [segThreshold, setSegThreshold] = useState(127);
-  const [numRegions, setNumRegions] = useState(3);
-
-  // Compress
-  const [compressQuality, setCompressQuality] = useState(80);
 
   const disabled = !hasImage || loading;
 
@@ -864,7 +885,38 @@ export default function ToolPanel({
             onClick={() => {
               console.log("[DEBUG] ToolPanel sending compression quality:", compressQuality);
               onApply("compress", "jpeg", { quality: Math.round(compressQuality) }, false);
-              setCompressQuality(80); // ✅ Reset to default after apply
+            }}>Apply Compression</button>
+        </Section>
+
+        {/* AI Recognition */}
+        <Section title="AI Recognition" icon={<Brain size={15} />}>
+          <p style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.6 }}>
+            Use MobileNetV2 CNN to classify image content. Returns top-5 predictions with confidence scores.
+          </p>
+          <button className="btn-primary"
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            disabled={disabled}
+            onClick={() => onApply("ml", "recognize", {})}>
+            <Sparkles size={14} /> Recognize Object
+          </button>
+        </Section>
+      </div>
+    </div>
+  );
+}
+rginBottom: 12 }}>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                RLE preserves pixels perfectly (100% Quality).
+              </span>
+            </div>
+          )}
+
+          <button className="btn-primary" style={{ width: "100%", marginTop: 4 }} disabled={disabled}
+            onClick={() => {
+              onApply("compress", compressMethod === "jpeg" ? "jpeg" : "rle", { 
+                quality: Math.round(compressQuality),
+                method: compressMethod 
+              }, false);
             }}>Apply Compression</button>
         </Section>
 
