@@ -1,66 +1,108 @@
 # Dokumentasi Teknis AI Recognition — Mini Photoshop
+*(Diperbarui otomatis setelah optimasi penuh — Juni 2026)*
 
-Dokumen ini merinci arsitektur, sumber data, dan logika pemrosesan yang digunakan dalam modul **AI Object Recognition** (Klasifikasi Human vs Not Human).
+Dokumen ini merinci arsitektur, sumber data, dan logika pemrosesan yang digunakan dalam modul **AI Object Recognition** (Klasifikasi Human vs Not Human) serta modul **Face Recognition CNN** (klasifikasi 40 identitas).
 
 ---
 
-## 1. Strategi Data (Dataset Sourcing)
+## 1. Strategi Data (Dataset Sourcing) — Binary Classifier
 
-Model ini dilatih menggunakan total **2.500+ citra** yang dikategorikan ke dalam dua kelas biner.
+Model binary dilatih menggunakan **~3.500+ citra** yang dikategorikan ke dalam dua kelas.
 
 ### A. Kelas: Human (Manusia)
-*   **LFW (Labeled Faces in the Wild):** Diambil via `sklearn.datasets`. Berisi foto wajah asli manusia dalam kondisi pencahayaan dan pose yang tidak teratur (*in-the-wild*).
-*   **Contextual Human Synthesis (Augmentasi):** Untuk menangani kegagalan deteksi wajah standar, kami membuat data sintetis dengan menempelkan potongan wajah LFW ke atas latar belakang acak (objek/pemandangan). Ini melatih model untuk mengenali manusia meskipun tidak dalam posisi *close-up* sempurna.
+| Sumber | Jumlah | Keterangan |
+|--------|--------|------------|
+| **LFW (Labeled Faces in the Wild)** | ~1.200 | Foto wajah asli via `sklearn.datasets`. In-the-wild conditions. |
+| **Contextual Human Synthesis** | ~500 | Wajah LFW ditempel ke latar belakang acak. Melatih model pada wajah non-close-up. |
 
 ### B. Kelas: Not Human (Bukan Manusia)
-*   **Picsum Photos:** Mengambil citra acak dari API `picsum.photos` yang mencakup pemandangan alam, benda mati, dan arsitektur.
-*   **Synthetic Digital/UI Noise:** Mengingat aplikasi ini sering digunakan untuk memproses *screenshot* perangkat digital, kami men-generate 800+ citra berisi pola geometris tajam, garis, dan teks acak. Hal ini dilakukan untuk meminimalisir *False Positive* pada antarmuka aplikasi/game.
+| Sumber | Jumlah | Keterangan |
+|--------|--------|------------|
+| **CIFAR-10** *(baru)* | ~1.500 | Dataset benchmark ML: airplane, automobile, bird, deer, frog, horse, ship, truck. Kelas cat & dog dikecualikan (terlalu mirip wajah). Jauh lebih clean dan representatif dari Picsum. |
+| **Synthetic Digital/UI Noise** | ~800 | Pola geometris, garis, dan teks acak. Meminimalkan false positive pada screenshot UI/game. |
+
+> **Kenapa mengganti Picsum?** Picsum Photos adalah endpoint gambar acak — berpotensi mengandung foto manusia di kelas "Not Human", mencemari label dataset. CIFAR-10 memiliki label ground-truth yang terverifikasi.
 
 ---
 
-## 2. Arsitektur Model (CNN)
-
-Model menggunakan arsitektur **Convolutional Neural Network (CNN)** kustom yang dioptimalkan untuk efisiensi CPU.
+## 2. Arsitektur Model Binary CNN (Upgraded: 3 Conv Blocks)
 
 | Layer | Tipe | Konfigurasi | Fungsi |
-| :--- | :--- | :--- | :--- |
-| **Input** | Input | 112x92x1 (Grayscale) | Menerima citra dalam format abu-abu untuk fokus pada fitur struktur. |
-| **Conv2D_1** | Convolution | 32 filters, 3x3 kernel | Ekstraksi fitur dasar (tepi, sudut). |
-| **BatchNormalization**| Normalization | - | Stabilisasi gradien dan percepatan training. |
-| **MaxPooling2D** | Downsampling | 2x2 pool | Reduksi dimensi spasial. |
-| **Conv2D_2** | Convolution | 64 filters, 3x3 kernel | Ekstraksi fitur kompleks (bentuk mata, mulut, tekstur). |
-| **Flatten** | Reshape | - | Mengubah peta fitur 2D menjadi vektor 1D. |
-| **Dense_1** | Fully Connected| 128 neurons, ReLU | Pembelajaran relasi fitur tingkat tinggi. |
-| **Dropout** | Regularization | 0.5 rate | Mencegah *overfitting* dengan mematikan neuron acak saat training. |
-| **Output** | Dense | 1 neuron, Sigmoid | Menghasilkan skor probabilitas [0.0 - 1.0]. |
+|:------|:-----|:------------|:-------|
+| **Input** | Input | 112×92×1 (Grayscale) | Citra abu-abu untuk fokus pada struktur, bukan warna. |
+| **Conv2D_1a/1b** | Convolution ×2 | 32 filters, 3×3, padding=same | Double conv: ekstraksi fitur dasar lebih kaya. |
+| **BatchNorm + MaxPool + Dropout(0.25)** | — | — | Stabilisasi & reduksi dimensi. |
+| **Conv2D_2a/2b** | Convolution ×2 | 64 filters, 3×3, padding=same | Fitur mid-level: bentuk, tekstur. |
+| **BatchNorm + MaxPool + Dropout(0.25)** | — | — | |
+| **Conv2D_3** | Convolution | 128 filters, 3×3, padding=same | **(Baru)** Fitur semantik tingkat tinggi. |
+| **BatchNorm + MaxPool + Dropout(0.25)** | — | — | |
+| **GlobalAveragePooling2D** | Pooling | — | **(Baru)** Menggantikan Flatten: parameter jauh lebih sedikit, generalisasi lebih baik. |
+| **Dense(256) + BatchNorm + Dropout(0.5)** | FC | ReLU | Klasifikasi tingkat tinggi dengan regularisasi kuat. |
+| **Output** | Dense | 1 neuron, Sigmoid | Probabilitas [0.0 – 1.0]. |
 
-*   **Loss Function:** `binary_crossentropy`
-*   **Optimizer:** `adam`
-
----
-
-## 3. Pipeline Inferensi (Proses Deteksi)
-
-Setiap permintaan pengenalan objek melewati tahapan berikut:
-
-1.  **Preprocessing:** Konversi ke Grayscale dan normalisasi pixel ke rentang [0, 1].
-2.  **Multi-Cascade Face Detection:**
-    *   Sistem menjalankan **Frontal Face Haar Cascade**.
-    *   Jika gagal, sistem menjalankan **Profile Face Haar Cascade** (untuk wajah miring/samping).
-    *   Jika wajah ditemukan, area wajah dipotong dengan *padding* 20px untuk inferensi yang lebih fokus.
-    *   Jika tetap gagal, sistem mengirimkan **seluruh gambar** ke model CNN (Inference Kontekstual).
-3.  **Tuning Klasifikasi:**
-    *   **Threshold:** Ditetapkan pada **0.7**. Model harus sangat yakin (>70%) untuk melabeli sebagai "Human".
-    *   Hal ini memberikan keseimbangan antara *Recall* (kemampuan menemukan manusia) dan *Precision* (kemampuan membedakan dari UI/objek).
+- **Loss:** `binary_crossentropy`
+- **Optimizer:** `Adam(lr=0.0005)` *(tuned — sebelumnya default)*
+- **Metrics:** Accuracy + AUC
 
 ---
 
-## 4. Metrik Performa Saat Ini
+## 3. Arsitektur Model Face Recognition CNN (Upgraded: 4 Conv Blocks)
 
-Berdasarkan pengujian terakhir pada data validasi:
-*   **Human Recall:** ~96% (Sangat jarang melewatkan manusia).
-*   **Precision:** ~94% (Sangat jarang salah mengenali UI sebagai manusia).
-*   **Akurasi Keseluruhan:** ~94% pada data uji variatif.
+| Layer | Tipe | Konfigurasi | Fungsi |
+|:------|:-----|:------------|:-------|
+| **Input** | Input | 112×92×1 | Citra ORL grayscale. |
+| **Block 1** | Conv ×2 | 32 filters | Low-level (tepi, sudut). |
+| **Block 2** | Conv ×2 | 64 filters | Mid-level (bentuk mata, mulut). |
+| **Block 3** | Conv ×2 | 128 filters | High-level (pola wajah). |
+| **Block 4** | Conv ×1 | 256 filters | **(Baru)** Deep semantic identity features. |
+| **GlobalAveragePooling2D** | Pooling | — | **(Baru)** vs Flatten lama. |
+| **Dense(512) + L2 + Dropout(0.5)** | FC | ReLU, L2(1e-4) | **(Baru)** L2 regularisasi untuk dataset kecil ORL. |
+| **Output** | Dense | 40 neurons, Softmax | Probabilitas per identitas. |
+
+- **Loss:** `SparseCategoricalCrossentropy`
+- **Optimizer:** `Adam(lr=0.0005)`
+- **Metrics:** Top-1 Accuracy + Top-3 Accuracy
 
 ---
-*Dokumen ini dibuat secara otomatis oleh Gemini CLI untuk transparansi sistem ML Mini Photoshop.*
+
+## 4. Optimasi Training (Semua Model)
+
+### Callbacks yang Ditambahkan
+| Callback | Parameter | Fungsi |
+|----------|-----------|--------|
+| **EarlyStopping** | patience=8–10, restore_best_weights=True | Hentikan training saat val_loss tidak membaik → cegah overfit & hemat waktu |
+| **ReduceLROnPlateau** | factor=0.5, patience=4–5, min_lr=1e-6 | Kurangi learning rate setengah saat plateau → konvergensi lebih halus |
+| **ModelCheckpoint** | monitor=val_accuracy, save_best_only=True | Simpan model dengan val_accuracy tertinggi, bukan epoch terakhir |
+
+### Fix Kritis Lainnya
+| # | Fix | Dampak |
+|---|-----|--------|
+| ✅ | `horizontal_flip=False` | Flip wajah menciptakan "identitas palsu" yang membingungkan classifier |
+| ✅ | `stratify=y` pada train_test_split | Distribusi kelas merata di train dan test set |
+| ✅ | `padding='same'` pada semua Conv | Informasi spasial di tepi gambar tidak hilang |
+| ✅ | Inference pakai `_best.h5` | Server memuat checkpoint terbaik, bukan epoch terakhir |
+| ✅ | `verbose=0` pada predict | Server log lebih bersih |
+
+---
+
+## 5. Pipeline Inferensi (Tidak Berubah, Tetap Optimal)
+
+1. **Preprocessing:** Grayscale + normalisasi pixel ke [0, 1]
+2. **Multi-Cascade Face Detection:**
+   - Frontal Face Haar Cascade
+   - Profile Face Haar Cascade (fallback)
+   - Jika ada wajah: crop + padding 20px
+   - Jika tidak ada: gunakan seluruh gambar (contextual inference)
+3. **Tuning Klasifikasi:** Threshold **0.7** (model harus >70% yakin untuk label "Human")
+
+---
+
+## 6. Metrik Performa (Historis & Target)
+
+| Model | Sebelum Optimasi | Target Setelah Optimasi |
+|-------|-----------------|------------------------|
+| Binary (Human/Not Human) | ~94% accuracy | **>96% accuracy, AUC >0.98** |
+| Face Recognition (40 kelas) | N/A (baru diukur) | **>85% Top-1, >95% Top-3** |
+
+---
+*Dokumen diperbarui otomatis oleh Antigravity IDE — Mini Photoshop v2.0*
