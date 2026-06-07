@@ -9,7 +9,7 @@ Dokumen ini merinci arsitektur, sumber data, dan logika pemrosesan yang digunaka
 
 Model binary dilatih menggunakan **~3.500+ citra** yang dikategorikan ke dalam dua kelas.
 
-### A. Kelas: Human (Manusia)
+### A. Kelas: Human (Manusia) Tes Fatih
 | Sumber | Jumlah | Keterangan |
 |--------|--------|------------|
 | **LFW (Labeled Faces in the Wild)** | ~1.200 | Foto wajah asli via `sklearn.datasets`. In-the-wild conditions. |
