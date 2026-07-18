@@ -67,7 +67,7 @@ Setiap operasi diproses secara stateless melalui REST API dengan format Base64, 
 ### Halaman Depan
 
 <p align="center">
-  <img src="docs/img/mini-photoshop%20(8).png" alt="Landing Page" width="700">
+  <img src="docs/img/mini-photoshop%20(1).png" alt="Landing Page" width="700">
   <br>
   <em>Landing page — Tagline "Pengolahan Citra, Lebih Sederhana", deskripsi aplikasi full-stack 11 modul dengan AI real-time, tombol "Mulai Editor" & "Jelajahi Fitur", serta statistik: 11 Modul, 6 Metode Tepi, 30+ Operasi, CNN TensorFlow.</em>
 </p>
