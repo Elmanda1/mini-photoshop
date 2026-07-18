@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/img/mini-photoshop%20(8).png" alt="Mini Photoshop Landing Page" width="800">
+  <img src="docs/img/mini-photoshop%20(1).png" alt="Mini Photoshop Landing Page" width="800">
 </p>
 
 <h1 align="center">Mini Photoshop</h1>
@@ -75,7 +75,7 @@ Setiap operasi diproses secara stateless melalui REST API dengan format Base64, 
 ### Editor — Tampilan Awal
 
 <p align="center">
-  <img src="docs/img/mini-photoshop%20(9).png" alt="Editor Kosong" width="700">
+  <img src="docs/img/mini-photoshop%20(2).png" alt="Editor Kosong" width="700">
   <br>
   <em>Editor kosong sebelum upload gambar — area "Drop your image here" (dropzone) dengan tool panel di kiri (Enhancement, Transform, Noise Reduction, dst) dan panel AI Recognition di kanan.</em>
 </p>
@@ -83,7 +83,7 @@ Setiap operasi diproses secara stateless melalui REST API dengan format Base64, 
 ### Editor — Panel Enhancement
 
 <p align="center">
-  <img src="docs/img/mini-photoshop%20(1).png" alt="Panel Enhancement" width="700">
+  <img src="docs/img/mini-photoshop%20(3).png" alt="Panel Enhancement" width="700">
   <br>
   <em>Editor panel Enhancement — gambar Before/After identik (status "Original"), dengan kontrol Brightness, Contrast, Smart Enhance, Hist EQ, Sharpen, Blur.</em>
 </p>
@@ -91,7 +91,7 @@ Setiap operasi diproses secara stateless melalui REST API dengan format Base64, 
 ### Modal — Advanced Image Cropper
 
 <p align="center">
-  <img src="docs/img/mini-photoshop%20(2).png" alt="Advanced Image Cropper" width="700">
+  <img src="docs/img/mini-photoshop%20(4).png" alt="Advanced Image Cropper" width="700">
   <br>
   <em>Modal "Advanced Image Cropper" — alat crop dengan grid profesional, opsi orientasi (Landscape/Portrait), aspect ratio (Free/1:1/4:3/16:9), menampilkan ukuran asli 1200×1600 px.</em>
 </p>
@@ -99,7 +99,7 @@ Setiap operasi diproses secara stateless melalui REST API dengan format Base64, 
 ### Editor — Panel Edge & Binary
 
 <p align="center">
-  <img src="docs/img/mini-photoshop%20(3).png" alt="Panel Edge & Binary" width="700">
+  <img src="docs/img/mini-photoshop%20(5).png" alt="Panel Edge & Binary" width="700">
   <br>
   <em>Editor panel Edge & Binary — hasil Deteksi Tepi metode Prewitt (Gradien Simpel), kernel size 5, plus opsi Operasi Biner (Threshold Hitam-Putih). Panel kanan status "Edited" dengan edit history "Prewitt".</em>
 </p>
@@ -107,7 +107,7 @@ Setiap operasi diproses secara stateless melalui REST API dengan format Base64, 
 ### Editor — Panel Transform
 
 <p align="center">
-  <img src="docs/img/mini-photoshop%20(7).png" alt="Panel Transform" width="700">
+  <img src="docs/img/mini-photoshop%20(9).png" alt="Panel Transform" width="700">
   <br>
   <em>Editor panel Transform — hasil rotasi gambar 91° (Apply Rotation), opsi H-Flip/V-Flip, Translate X/Y, Scale. Edit history: "Rotate (Angle: 91°)".</em>
 </p>
@@ -115,7 +115,7 @@ Setiap operasi diproses secara stateless melalui REST API dengan format Base64, 
 ### Editor — Panel Segmentation & AI Recognition
 
 <p align="center">
-  <img src="docs/img/mini-photoshop%20(4).png" alt="Panel Segmentation & AI" width="700">
+  <img src="docs/img/mini-photoshop%20(6).png" alt="Panel Segmentation & AI" width="700">
   <br>
   <em>Editor panel Segmentation — metode "K-means regions - color clusters" dengan 3 regions, After gambar tersegmentasi per warna. Panel AI Recognition dengan tombol "Recognize Object" (Human vs Not Human — Binary CNN TensorFlow).</em>
 </p>
@@ -123,7 +123,7 @@ Setiap operasi diproses secara stateless melalui REST API dengan format Base64, 
 ### Panduan Pengguna
 
 <p align="center">
-  <img src="docs/img/mini-photoshop%20(5).png" alt="Panduan Pengguna" width="700">
+  <img src="docs/img/mini-photoshop%20(7).png" alt="Panduan Pengguna" width="700">
   <br>
   <em>Halaman "Panduan Pengguna" — dokumentasi manual langkah: 1. Persiapan Awal (backend & frontend), 2. Unggah Gambar, 3. Proses Pengolahan (Tool Panel & slider).</em>
 </p>
@@ -131,7 +131,7 @@ Setiap operasi diproses secara stateless melalui REST API dengan format Base64, 
 ### Dokumentasi API
 
 <p align="center">
-  <img src="docs/img/mini-photoshop%20(6).png" alt="Dokumentasi API" width="700">
+  <img src="docs/img/mini-photoshop%20(8).png" alt="Dokumentasi API" width="700">
   <br>
   <em>Halaman "Dokumentasi Lengkap API" — daftar endpoint untuk 11 modul, seluruhnya HTTP POST dengan base64 encoded image. Contoh: /enhance, /transform, /filter, /edge, /color, /segment, dan lainnya.</em>
 </p>
@@ -247,7 +247,3 @@ Seluruh endpoint menggunakan metode **HTTP POST** dengan body JSON `{"image": "<
 Proyek ini dilisensikan di bawah **MIT License**. Lihat file [LICENSE](LICENSE) untuk detail lebih lanjut.
 
 ---
-
-<p align="center">
-  Dibuat dengan ❤️ — <em>Pengolahan Citra, Lebih Sederhana</em>
-</p>
