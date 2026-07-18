@@ -33,66 +33,64 @@ interface HistogramData {
 }
 
 interface HistogramChartProps {
-  beforeData: HistogramData | null;
-  afterData: HistogramData | null;
-  showComparison: boolean;
+  data: HistogramData | null;
+  title: string;
+  color?: string; // Optional accent color
 }
 
 export default function HistogramChart({
-  beforeData,
-  afterData,
-  showComparison,
+  data,
+  title,
+  color = "var(--wine-light)",
 }: HistogramChartProps) {
-  if (!beforeData && !afterData) {
+  if (!data) {
     return (
-      <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
-        Upload an image to view histogram
+      <div style={{ height: 160, display: "flex", alignItems: "center", justifyContent: "center", border: "1px dashed var(--border-color)", borderRadius: 8, margin: "8px 12px" }}>
+        <span style={{ color: "var(--text-muted)", fontSize: 11 }}>No histogram data</span>
       </div>
     );
   }
 
   const labels = Array.from({ length: 256 }, (_, i) => i);
   const datasets: any[] = [];
-  const data = showComparison && afterData ? afterData : beforeData;
-  const prefix = showComparison && afterData ? "After" : "Before";
 
   if (data?.grayscale) {
     datasets.push({
-      label: `${prefix} — Grayscale`,
+      label: "Grayscale",
       data: data.grayscale,
-      borderColor: "rgba(168, 154, 149, 0.7)",
-      backgroundColor: "rgba(168, 154, 149, 0.08)",
-      borderWidth: 1, pointRadius: 0, fill: true, tension: 0.3,
+      borderColor: "rgba(168, 154, 149, 0.9)",
+      backgroundColor: "rgba(168, 154, 149, 0.15)",
+      borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.4,
     });
   }
 
   if (data?.r) {
     datasets.push({
-      label: `${prefix} — Red`,
+      label: "Red",
       data: data.r,
       borderColor: "rgba(201, 107, 107, 0.8)",
-      backgroundColor: "rgba(201, 107, 107, 0.08)",
-      borderWidth: 1, pointRadius: 0, fill: true, tension: 0.3,
+      backgroundColor: "rgba(201, 107, 107, 0.05)",
+      borderWidth: 1, pointRadius: 0, fill: false, tension: 0.4,
     });
   }
 
   if (data?.g) {
     datasets.push({
-      label: `${prefix} — Green`,
+      label: "Green",
       data: data.g,
       borderColor: "rgba(122, 155, 126, 0.8)",
-      backgroundColor: "rgba(122, 155, 126, 0.08)",
-      borderWidth: 1, pointRadius: 0, fill: true, tension: 0.3,
+      backgroundColor: "rgba(122, 155, 126, 0.05)",
+      borderWidth: 1, pointRadius: 0, fill: false, tension: 0.4,
     });
   }
 
   if (data?.b) {
     datasets.push({
-      label: `${prefix} — Blue`,
+      label: "Blue",
       data: data.b,
       borderColor: "rgba(138, 155, 173, 0.8)",
-      backgroundColor: "rgba(138, 155, 173, 0.08)",
-      borderWidth: 1, pointRadius: 0, fill: true, tension: 0.3,
+      backgroundColor: "rgba(138, 155, 173, 0.05)",
+      borderWidth: 1, pointRadius: 0, fill: false, tension: 0.4,
     });
   }
 
@@ -105,11 +103,20 @@ export default function HistogramChart({
       legend: {
         display: true,
         position: "top" as const,
+        align: "end" as const,
         labels: {
           color: "rgba(168, 154, 149, 0.7)",
-          font: { size: 10, family: "'Inter', sans-serif" },
-          boxWidth: 10, padding: 10, usePointStyle: true, pointStyle: "circle",
+          font: { size: 9, family: "'Inter', sans-serif" },
+          boxWidth: 8, padding: 6, usePointStyle: true, pointStyle: "circle",
         },
+      },
+      title: {
+        display: true,
+        text: title,
+        align: "start" as const,
+        color: color,
+        font: { size: 10, weight: 700, family: "'Inter', sans-serif" },
+        padding: { bottom: 10 }
       },
       tooltip: {
         mode: "index" as const,
@@ -119,28 +126,26 @@ export default function HistogramChart({
         borderWidth: 1,
         titleFont: { size: 11 },
         bodyFont: { size: 10, family: "'JetBrains Mono', monospace" },
-        padding: 10, cornerRadius: 8,
+        padding: 8, cornerRadius: 6,
       },
     },
     scales: {
       x: {
         display: true,
         grid: { display: false },
-        ticks: { color: "rgba(168, 154, 149, 0.4)", font: { size: 9 }, maxTicksLimit: 8 },
-        title: { display: true, text: "Pixel Intensity", color: "rgba(168, 154, 149, 0.5)", font: { size: 10 } },
+        ticks: { color: "rgba(168, 154, 149, 0.3)", font: { size: 8 }, maxTicksLimit: 6 },
       },
       y: {
         display: true,
-        grid: { color: "rgba(255, 255, 255, 0.03)" },
-        ticks: { color: "rgba(168, 154, 149, 0.4)", font: { size: 9 }, maxTicksLimit: 5 },
-        title: { display: true, text: "Frequency", color: "rgba(168, 154, 149, 0.5)", font: { size: 10 } },
+        grid: { color: "rgba(255, 255, 255, 0.02)" },
+        ticks: { display: false },
       },
     },
     interaction: { mode: "nearest" as const, axis: "x" as const, intersect: false },
   };
 
   return (
-    <div style={{ height: 200, padding: "8px 12px" }}>
+    <div style={{ height: 160, padding: "4px 12px 12px" }}>
       <Line data={chartData} options={options} />
     </div>
   );

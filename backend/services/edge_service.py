@@ -90,13 +90,6 @@ def log_edge(img: np.ndarray, sigma: float = 1.0) -> np.ndarray:
     return cv2.cvtColor(np.uint8(log_norm), cv2.COLOR_GRAY2BGR)
 
 
-def threshold_binary(img: np.ndarray, thresh: int = 127, max_val: int = 255) -> np.ndarray:
-    """Apply binary thresholding."""
-    gray = _to_gray(img)
-    _, binary = cv2.threshold(gray, thresh, max_val, cv2.THRESH_BINARY)
-    return cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
-
-
 def erosion(img: np.ndarray, kernel_size: int = 5, iterations: int = 1) -> np.ndarray:
     """Apply morphological erosion."""
     kernel = np.ones((kernel_size, kernel_size), np.uint8)

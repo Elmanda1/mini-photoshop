@@ -86,29 +86,3 @@ def blur(img: np.ndarray, kernel_size: int = 5) -> np.ndarray:
         ksize += 1
     
     return cv2.GaussianBlur(img, (ksize, ksize), 0)
-
-
-def smart_enhance(img: np.ndarray) -> np.ndarray:
-    """
-    Apply a more aggressive combination of localized contrast enhancement (CLAHE),
-    auto-brightness, and sharpening.
-    """
-    # 1. Localized Contrast Enhancement (CLAHE) - Aggressive
-    lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-    l, a, b = cv2.split(lab)
-    
-    # Increase clipLimit for more punchy contrast
-    clahe = cv2.createCLAHE(clipLimit=3.5, tileGridSize=(8, 8))
-    cl = clahe.apply(l)
-    
-    # 2. Basic Auto-Brightness (Normalization to use full range)
-    cl = cv2.normalize(cl, None, 0, 255, cv2.NORM_MINMAX)
-    
-    # Merge back
-    limg = cv2.merge((cl, a, b))
-    enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-    
-    # 3. Sharpening - Moderate
-    result = sharpen(enhanced, intensity=0.5)
-    
-    return result

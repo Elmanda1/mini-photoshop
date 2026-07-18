@@ -18,6 +18,7 @@ import {
 } from "@/lib/api";
 import CropResizeModal from "@/components/CropResizeModal";
 import HelpModal from "@/components/HelpModal";
+import { useDebouncedEffect } from "@/hooks/useDebouncedEffect";
 
 import {
   RotateCcw,
@@ -123,7 +124,8 @@ export default function EditorPage() {
   const [loading, setLoading] = useState(false);
 
   const [showHistogram, setShowHistogram] = useState(false);
-  const [histData, setHistData] = useState<any>(null);
+  const [beforeHist, setBeforeHist] = useState<any>(null);
+  const [afterHist, setAfterHist] = useState<any>(null);
 
   const [mlResult, setMlResult] = useState<any>(null);
   const [mlLoading, setMlLoading] = useState(false);
@@ -134,12 +136,31 @@ export default function EditorPage() {
   const [originalDimensions, setOriginalDimensions] = useState<{ width: number; height: number } | null>(null);
 
   const [exportFormat, setExportFormat] = useState("png");
-  const [exportQuality, setExportQuality] = useState(90);
 
   const [zoom, setZoom] = useState(1);
   const [resetKey, setResetKey] = useState(0);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-const [liveFilters, setLiveFilters] = useState({
+
+  // ─── Histogram Auto-Sync ───
+  // Update "Before" histogram whenever uploadedImage changes (locked as original baseline)
+  useEffect(() => {
+    if (uploadedImage) {
+      getHistogram(uploadedImage).then(setBeforeHist).catch(() => { });
+    } else {
+      setBeforeHist(null);
+    }
+  }, [uploadedImage]);
+
+  // Update "After" histogram whenever displayImage changes (debounced for live preview smoothness)
+  useDebouncedEffect(() => {
+    if (displayImage) {
+      getHistogram(displayImage).then(setAfterHist).catch(() => { });
+    } else {
+      setAfterHist(null);
+    }
+  }, [displayImage], 200);
+
+  const [liveFilters, setLiveFilters] = useState({
   brightness: 0,
   contrast: 1.0,
   hueShift: 0,
@@ -151,7 +172,7 @@ const [liveFilters, setLiveFilters] = useState({
 });
 
   const [historyState, setHistoryState] = useState<{
-    list: { image: string; log: string[] }[];
+    list: { image: string; log: string[]; compressionInfo?: any }[];
     index: number;
   }>({ list: [], index: -1 });
 
@@ -193,7 +214,8 @@ const [liveFilters, setLiveFilters] = useState({
         resolve(previewBase64);
       };
       img.onerror = () => resolve(base64);
-      img.src = `data:image/png;base64,${base64}`;
+      const isJpeg = base64.startsWith("/9j/");
+      img.src = `data:image/${isJpeg ? "jpeg" : "png"};base64,${base64}`;
     });
   };
 
@@ -222,16 +244,13 @@ const [liveFilters, setLiveFilters] = useState({
     setResetKey((k) => k + 1);
 
     try {
-
       const img = new Image();
       img.onload = () => {
         setImageDimensions({ width: img.width, height: img.height });
         setOriginalDimensions({ width: img.width, height: img.height });
       };
-      img.src = `data:image/png;base64,${base64}`;
-
-      const hist = await getHistogram(base64);
-      setHistData(hist);
+      const isJpeg = base64.startsWith("/9j/");
+      img.src = `data:image/${isJpeg ? "jpeg" : "png"};base64,${base64}`;
     } catch { }
 
     showToast("Image loaded");
@@ -284,7 +303,10 @@ const [liveFilters, setLiveFilters] = useState({
     showToast("Reset to original (All processes stopped)");
 
     // Update histogram
-    getHistogram(uploadedImage).then(setHistData).catch(() => { });
+    getHistogram(uploadedImage).then((h) => {
+      setBeforeHist(h);
+      setAfterHist(h);
+    }).catch(() => { });
   };
 
   const handleCancelPreview = useCallback(() => {
@@ -399,7 +421,7 @@ const [liveFilters, setLiveFilters] = useState({
         extension = "webp";
       }
 
-      const quality = exportQuality / 100;
+      const quality = compressionInfo?.quality ? compressionInfo.quality / 100 : 0.95;
       const dataUrl = canvas.toDataURL(mimeType, quality);
 
       const link = document.createElement("a");
@@ -435,14 +457,14 @@ const [liveFilters, setLiveFilters] = useState({
     e.target.value = "";
   };
 
-  const pushHistory = useCallback((newImage: string, newOpDetail: string) => {
+  const pushHistory = useCallback((newImage: string, newOpDetail: string, currentCompressionInfo?: any) => {
     setBaseImage(newImage);
 
     setHistoryState((prev) => {
       const currentLog = prev.list[prev.index]?.log || [];
       const nextLog = [...currentLog, newOpDetail];
       const newList = prev.list.slice(0, prev.index + 1);
-      newList.push({ image: newImage, log: nextLog });
+      newList.push({ image: newImage, log: nextLog, compressionInfo: currentCompressionInfo });
 
       if (newList.length > 20) {
         newList.shift();
@@ -500,8 +522,10 @@ const [liveFilters, setLiveFilters] = useState({
 
       const requestId = ++liveRequestId.current;
 
+      let result: any;
+      let newCompressionInfo: any = null;
+
       try {
-        let result: any;
         if (module === "compress") {
           console.log(`[DEBUG] Compression - Module: ${module}, Op: ${operation}, Quality: ${params.quality}`);
         }
@@ -526,14 +550,17 @@ const [liveFilters, setLiveFilters] = useState({
             result = await applySegmentation(sourceImage, operation, params);
             break;
           case "compress":
-            result = await applyCompression(sourceImage, params.quality || 80);
+            result = await applyCompression(sourceImage, params.quality || 80, params.method);
             if (result.compression_ratio) {
-              setCompressionInfo({
+              newCompressionInfo = {
                 original: result.original_size,
                 compressed: result.compressed_size,
                 ratio: result.compression_ratio,
                 quality: result.quality,
-              });
+                method: result.method,
+                rawBits: result.raw_bits
+              };
+              setCompressionInfo(newCompressionInfo);
             }
             break;
           case "ml":
@@ -568,8 +595,9 @@ const [liveFilters, setLiveFilters] = useState({
               }
               
               const detailStr = formatOpDetails(operation, params);
-              pushHistory(result.image, detailStr);
+              pushHistory(result.image, detailStr, module === "compress" ? newCompressionInfo : compressionInfo);
               showToast(`Applied: ${operation}`);
+
               setLoading(false);
             } else {
               setDisplayImage(result.image);
@@ -577,15 +605,12 @@ const [liveFilters, setLiveFilters] = useState({
                 width: Math.round(img.width / previewScale),
                 height: Math.round(img.height / previewScale),
               });
+              // Sync After Histogram on live preview
+              getHistogram(result.image).then(setAfterHist).catch(() => {});
             }
           };
-          img.onerror = () => {
-            if (!isLive) {
-              setLoading(false);
-              showToast("Failed to render result");
-            }
-          };
-          img.src = `data:image/png;base64,${result.image}`;
+          const isJpeg = result.image.startsWith("/9j/");
+          img.src = `data:image/${isJpeg ? "jpeg" : "png"};base64,${result.image}`;
           return;
         } else if (result?.error) {
           showToast(`Error: ${result.error}`);
@@ -608,17 +633,24 @@ const [liveFilters, setLiveFilters] = useState({
       if (prev.index > 0) {
         const newIdx = prev.index - 1;
         const state = prev.list[newIdx];
+        const prevState = prev.list[newIdx > 0 ? newIdx - 1 : 0];
+        
         setBaseImage(state.image);
         setDisplayImage(state.image);
+        setCompressionInfo(state.compressionInfo || null);
 
         const img = new Image();
         img.onload = () => setImageDimensions({ width: img.width, height: img.height });
-        img.src = `data:image/png;base64,${state.image}`;
+        img.src = state.image.startsWith("/9j/") ? `data:image/jpeg;base64,${state.image}` : `data:image/png;base64,${state.image}`;
 
         lastOperationRef.current = null;
         setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0, scale: 1.0, translateX: 0, translateY: 0 });
         setResetKey((k) => k + 1);
-        getHistogram(state.image).then(setHistData).catch(() => { });
+        
+        // Recalculate Histograms for undo
+        getHistogram(prevState.image).then(setBeforeHist).catch(() => {});
+        getHistogram(state.image).then(setAfterHist).catch(() => {});
+
         return { ...prev, index: newIdx };
       }
       return prev;
@@ -630,17 +662,24 @@ const [liveFilters, setLiveFilters] = useState({
       if (prev.index < prev.list.length - 1) {
         const newIdx = prev.index + 1;
         const state = prev.list[newIdx];
+        const prevState = prev.list[newIdx - 1];
+
         setBaseImage(state.image);
         setDisplayImage(state.image);
+        setCompressionInfo(state.compressionInfo || null);
 
         const img = new Image();
         img.onload = () => setImageDimensions({ width: img.width, height: img.height });
-        img.src = `data:image/png;base64,${state.image}`;
+        img.src = state.image.startsWith("/9j/") ? `data:image/jpeg;base64,${state.image}` : `data:image/png;base64,${state.image}`;
 
         lastOperationRef.current = null;
         setLiveFilters({ brightness: 0, contrast: 1.0, hueShift: 0, saturation: 1.0, rotation: 0, scale: 1.0, translateX: 0, translateY: 0 });
         setResetKey((k) => k + 1);
-        getHistogram(state.image).then(setHistData).catch(() => { });
+
+        // Recalculate Histograms for redo
+        getHistogram(prevState.image).then(setBeforeHist).catch(() => {});
+        getHistogram(state.image).then(setAfterHist).catch(() => {});
+
         return { ...prev, index: newIdx };
       }
       return prev;
@@ -661,6 +700,9 @@ const [liveFilters, setLiveFilters] = useState({
         } else if (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey)) {
           e.preventDefault();
           if (historyState.index < historyState.list.length - 1) handleRedo();
+        } else if (e.key.toLowerCase() === "r") {
+          e.preventDefault();
+          handleReset();
         }
       } else {
         if (e.key.toLowerCase() === "c" && uploadedImage && !isCropModalOpen) {
@@ -845,7 +887,7 @@ const [liveFilters, setLiveFilters] = useState({
             />
           </div>
 
-          {/* Histogram — single view of current image */}
+          {/* Histogram Section — Side-by-side view */}
           {showHistogram && (
             <div
               className="animate-slide-up"
@@ -874,14 +916,17 @@ const [liveFilters, setLiveFilters] = useState({
                     letterSpacing: "0.08em",
                   }}
                 >
-                  Histogram
+                  Histogram Comparison (Before vs After)
                 </span>
               </div>
-              <HistogramChart
-                beforeData={histData}
-                afterData={null}
-                showComparison={false}
-              />
+              <div style={{ display: "flex", width: "100%" }}>
+                <div style={{ flex: 1, borderRight: "1px solid var(--border-color)" }}>
+                  <HistogramChart data={beforeHist} title="Original / Previous" color="var(--text-muted)" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <HistogramChart data={afterHist} title="Current / Result" color="var(--wine-light)" />
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1013,6 +1058,11 @@ const [liveFilters, setLiveFilters] = useState({
                   <span style={{ fontFamily: "var(--font-mono)" }}>
                     {(compressionInfo.compressed / 1024).toFixed(1)} KB
                   </span>
+                  {(compressionInfo.method !== "jpeg") && (
+                    <span style={{ fontSize: 10, color: "var(--wine-light)", marginLeft: 6, fontWeight: 600 }}>
+                      (Theoretical)
+                    </span>
+                  )}
                 </div>
                 <div>
                   Ratio:{" "}
@@ -1026,6 +1076,19 @@ const [liveFilters, setLiveFilters] = useState({
                     {compressionInfo.ratio}x
                   </span>
                 </div>
+                {compressionInfo.method !== "jpeg" && (
+                  <div style={{ fontSize: 9, color: "var(--text-muted)", fontStyle: "italic", lineHeight: 1.2, marginTop: 4 }}>
+                    Tip: Export as WebP to get closest to this size.
+                  </div>
+                )}
+                {compressionInfo.rawBits && (
+                  <div style={{ marginTop: 4, borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 4 }}>
+                    Binary:{" "}
+                    <span style={{ fontFamily: "var(--font-mono)", color: "var(--gold)" }}>
+                      {compressionInfo.rawBits.toLocaleString()} bits
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1096,26 +1159,9 @@ const [liveFilters, setLiveFilters] = useState({
               </div>
             </div>
 
-            {(exportFormat === "jpg" || exportFormat === "webp") && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>Quality</span>
-                  <span style={{ fontSize: 11, color: "var(--wine-light)", fontWeight: 700 }}>{exportQuality}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="100"
-                  value={exportQuality}
-                  onChange={(e) => setExportQuality(parseInt(e.target.value))}
-                  style={{ width: "100%", accentColor: "var(--wine-light)" }}
-                />
-              </div>
-            )}
-
             <button
               className="btn-primary"
-              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 4 }}
               onClick={handleExport}
               disabled={!displayImage || loading}
             >

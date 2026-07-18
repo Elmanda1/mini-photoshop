@@ -364,7 +364,7 @@ export default function ToolPanel({
 
   // Edge
   const [edgeMethod, setEdgeMethod] = useState("canny");
-  const [binaryMethod, setBinaryMethod] = useState("threshold");
+  const [binaryMethod, setBinaryMethod] = useState("erosion");
   const [threshold1, setThreshold1] = useState(100);
   const [threshold2, setThreshold2] = useState(200);
   const [edgeKernel, setEdgeKernel] = useState(5);
@@ -387,7 +387,7 @@ export default function ToolPanel({
 
   // Compress
   const [compressQuality, setCompressQuality] = useState(80);
-  const [compressMethod, setCompressMethod] = useState<"jpeg" | "rle">("jpeg");
+  const [compressMethod, setCompressMethod] = useState<"jpeg" | "rle" | "huffman" | "arithmetic" | "lzw">("jpeg");
 
   // Smooth Reset Mechanism
   useEffect(() => {
@@ -547,32 +547,10 @@ export default function ToolPanel({
           <SliderControl label="Contrast" value={contrast} min={0.1} max={3.0} step={0.1} onChange={(v) => handleBCChange(brightness, v)} unit="x" />
           <button className="btn-primary" style={{ width: "100%", marginBottom: 12 }} disabled={disabled || (brightness === 0 && contrast === 1.0)}
             onClick={handleBCApply}>Apply Enhancement</button>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-            <button
-              className="btn-primary"
-              style={{
-                height: 48,
-                background: "linear-gradient(135deg, var(--wine-bg-strong) 0%, #4a0e0e 100%)",
-                border: "1px solid var(--border-wine)",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-                fontSize: 11,
-                fontWeight: 700,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 2,
-                padding: "4px 8px",
-                lineHeight: 1.1,
-              }}
-              disabled={disabled}
-              onClick={() => onApply("enhance", "smart_enhance", {})}
-            >
-              <span>Smart Enhance</span>
-            </button>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8, marginBottom: 16 }}>
             <button className="btn-secondary" style={{ height: 48, fontSize: 11, display: "flex", flexDirection: "column", justifyContent: "center", gap: 2, padding: "4px 8px", lineHeight: 1.1 }}
               disabled={disabled} onClick={() => onApply("enhance", "histogram_eq", {})}>
-              <span>Hist EQ</span>
+              <span>Histogram Equalization</span>
             </button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
@@ -728,7 +706,6 @@ export default function ToolPanel({
               <span style={{ fontSize: 11, color: "var(--text-secondary)", display: "block", marginBottom: 6, fontWeight: 500 }}>Metode Biner</span>
               <div style={{ position: "relative" }}>
                 <select value={binaryMethod} onChange={(e) => setBinaryMethod(e.target.value)}>
-                  <option value="threshold">Threshold (Hitam-Putih)</option>
                   <option value="erosion">Erosi (Menipiskan)</option>
                   <option value="dilation">Dilatasi (Menebalkan)</option>
                 </select>
@@ -736,19 +713,12 @@ export default function ToolPanel({
               </div>
             </div>
 
-            {binaryMethod === "threshold" ? (
-              <SliderControl label="Nilai Ambang" value={threshold1} min={0} max={255} step={1} onChange={setThreshold1} />
-            ) : (
-              <>
-                <SliderControl label="Besar Kernel" value={edgeKernel} min={3} max={15} step={2} onChange={setEdgeKernel} />
-                <SliderControl label="Iterasi" value={morphIterations} min={1} max={10} step={1} onChange={setMorphIterations} />
-              </>
-            )}
+            <SliderControl label="Besar Kernel" value={edgeKernel} min={3} max={15} step={2} onChange={setEdgeKernel} />
+            <SliderControl label="Iterasi" value={morphIterations} min={1} max={10} step={1} onChange={setMorphIterations} />
 
             <button className="btn-secondary" style={{ width: "100%", borderColor: "var(--gold)", color: "var(--gold)" }} disabled={disabled}
               onClick={() => {
-                if (binaryMethod === "threshold") onApply("edge", "threshold", { thresh_value: threshold1 });
-                else onApply("edge", binaryMethod, { kernel_size: edgeKernel, iterations: morphIterations });
+                onApply("edge", binaryMethod, { kernel_size: edgeKernel, iterations: morphIterations });
               }}>Terapkan Operasi Biner</button>
           </div>
         </Section>
@@ -966,37 +936,48 @@ export default function ToolPanel({
             <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 6 }}>
               Method
             </span>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button
-                className={compressMethod === "jpeg" ? "btn-primary" : "btn-secondary"}
-                style={{ flex: 1, height: 28, fontSize: 10, fontWeight: 600 }}
-                onClick={() => setCompressMethod("jpeg")}
+            <div style={{ position: "relative" }}>
+              <select 
+                value={compressMethod} 
+                onChange={(e) => setCompressMethod(e.target.value as any)}
+                style={{
+                  width: "100%",
+                  appearance: "none",
+                  padding: "8px 12px",
+                  background: "var(--bg-elevated)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: 6,
+                  color: "var(--text-primary)",
+                  fontSize: 12,
+                  outline: "none",
+                  cursor: "pointer"
+                }}
               >
-                Lossy (JPEG)
-              </button>
-              <button
-                className={compressMethod === "rle" ? "btn-primary" : "btn-secondary"}
-                style={{ flex: 1, height: 28, fontSize: 10, fontWeight: 600 }}
-                onClick={() => setCompressMethod("rle")}
-              >
-                Lossless (RLE)
-              </button>
+                <option value="jpeg">Lossy (JPEG)</option>
+                <option value="rle">Lossless (RLE)</option>
+                <option value="huffman">Lossless (Huffman)</option>
+                <option value="arithmetic">Lossless (Aritmik)</option>
+                <option value="lzw">Lossless (LZW)</option>
+              </select>
+              <ChevronDown size={14} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "var(--text-muted)" }} />
             </div>
           </div>
 
-          {compressMethod === "jpeg" ? (
+          {compressMethod === "jpeg" && (
             <SliderControl label="JPEG Quality" value={compressQuality} min={1} max={100} step={1} onChange={setCompressQuality} unit="%" />
-          ) : (
+          )}
+
+          {compressMethod !== "jpeg" && (
             <div style={{ padding: "10px 12px", background: "var(--bg-elevated)", border: "1px dashed var(--border-color)", borderRadius: 8, textAlign: "center", marginBottom: 12 }}>
               <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
-                RLE preserves pixels perfectly (100% Quality).
+                {compressMethod.toUpperCase()} preserves pixels perfectly.
               </span>
             </div>
           )}
 
           <button className="btn-primary" style={{ width: "100%", marginTop: 4 }} disabled={disabled}
             onClick={() => {
-              onApply("compress", compressMethod === "jpeg" ? "jpeg" : "rle", { 
+              onApply("compress", compressMethod, { 
                 quality: Math.round(compressQuality),
                 method: compressMethod 
               }, false);

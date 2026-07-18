@@ -74,3 +74,59 @@ def compress_rle(img: np.ndarray) -> tuple:
     # But usually smaller than a PNG.
     return img, original_size, estimated_size
 
+
+def _calculate_entropy(img: np.ndarray) -> float:
+    """Helper to calculate Shannon entropy of the image."""
+    # Convert to grayscale for entropy calculation
+    if len(img.shape) == 3:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img
+        
+    hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
+    hist = hist.ravel() / hist.sum()
+    logs = np.log2(hist + 1e-10)
+    entropy = -np.sum(hist * logs)
+    return float(entropy)
+
+
+def compress_huffman(img: np.ndarray) -> tuple:
+    """Simulate Lossless Huffman Encoding."""
+    _, orig_buf = cv2.imencode('.png', img)
+    original_size = len(orig_buf)
+    
+    entropy = _calculate_entropy(img)
+    # Total bits = entropy * width * height * channels
+    # Divide by 8 for bytes
+    num_pixels = img.shape[0] * img.shape[1]
+    num_channels = img.shape[2] if len(img.shape) == 3 else 1
+    estimated_size = int((entropy * num_pixels * num_channels) / 8) + 512
+    
+    return img, original_size, min(estimated_size, original_size)
+
+
+def compress_arithmetic(img: np.ndarray) -> tuple:
+    """Simulate Lossless Arithmetic Encoding (typically 5-10% better than Huffman)."""
+    img, original_size, huffman_size = compress_huffman(img)
+    # Arithmetic is slightly more efficient
+    estimated_size = int(huffman_size * 0.92) + 256
+    return img, original_size, min(estimated_size, original_size)
+
+
+def compress_lzw(img: np.ndarray) -> tuple:
+    """Simulate Lossless LZW Encoding."""
+    _, orig_buf = cv2.imencode('.png', img)
+    original_size = len(orig_buf)
+    
+    # LZW efficiency varies, but for images it's often similar to PNG/GIF
+    # We'll use a heuristic based on image complexity
+    entropy = _calculate_entropy(img)
+    complexity_factor = entropy / 8.0 # 0.0 to 1.0
+    
+    num_pixels = img.shape[0] * img.shape[1]
+    num_channels = img.shape[2] if len(img.shape) == 3 else 1
+    # Base size + variable size based on complexity
+    estimated_size = int(original_size * (0.3 + 0.5 * complexity_factor))
+    
+    return img, original_size, min(estimated_size, original_size)
+

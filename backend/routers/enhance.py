@@ -10,7 +10,7 @@ import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import decode_image, encode_image, ensure_3channel, merge_alpha
 from services.enhance_service import (
-    adjust_brightness_contrast, histogram_equalization, sharpen, blur, smart_enhance
+    adjust_brightness_contrast, histogram_equalization, sharpen, blur
 )
 
 router = APIRouter(prefix="/api", tags=["Enhancement"])
@@ -39,8 +39,6 @@ async def enhance_endpoint(req: EnhanceRequest):
         result = sharpen(bgr, req.intensity)
     elif req.operation == "blur":
         result = blur(bgr, req.kernel_size)
-    elif req.operation == "smart_enhance":
-        result = smart_enhance(bgr)
     else:
         return {"error": f"Unknown operation: {req.operation}"}
 
